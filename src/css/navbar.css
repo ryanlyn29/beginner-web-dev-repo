@@ -65,7 +65,7 @@ body {
 
 .nav-item {
   position: relative;
-  z-index: 10;
+  z-index: 15;
   padding: 0.4rem 1rem;
   border-radius: 9999px;
   color: #555;
@@ -100,7 +100,7 @@ body {
 .login-btn,
 .signup-btn {
   font-size: 0.9rem;
-  padding: 0.4rem 1.2rem;
+  padding: 0.45rem 1.2rem;
   border-radius: 9999px;
   text-decoration: none;
   transition: all 0.3s ease;
@@ -145,28 +145,29 @@ body {
 }
 
 .mobile-menu {
+  display: none; /* stays hidden by default */
   position: absolute;
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
   margin-top: 0.75rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.816);
+  padding: 2%;
   backdrop-filter: blur(10px);
   border: 1px solid #ddd;
   border-radius: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   width: 85%;
-  max-height: 0;
   opacity: 0;
-  transition: all 0.5s ease;
-  display: flex;
+  transition: all 0.4s ease;
   flex-direction: column;
 }
 
 .mobile-menu.open {
-  max-height: 400px;
+  display: flex; /* show only when open */
   opacity: 1;
+  max-height: 400px;
 }
 
 .mobile-item {
@@ -176,6 +177,7 @@ body {
   text-decoration: none;
   border-radius: 9999px;
   transition: background 0.3s;
+  margin: 0.2rem 0.5rem;
 }
 
 .mobile-item:hover {
@@ -184,13 +186,13 @@ body {
 
 .mobile-item.border {
   border: 1px solid #ccc;
-  margin: 0.2rem 0.8rem;
+  margin: 0.2rem 0.5rem;
 }
 
 .mobile-item.solid {
   background: #111;
   color: #fff;
-  margin: 0.2rem 0.8rem;
+  margin: 0.2rem 0.5rem;
 }
 
 .mobile-item.solid:hover {
@@ -205,11 +207,22 @@ body {
   }
 
   .nav-container{
-    width: 90%;
+    width: 95%;
   }
 
     .mobile-toggle {
     display: flex;
     margin-left: auto;
+  }
+
+  
+}
+
+@media (min-width: 769px) {
+  /* Ensure mobile menu is completely hidden on larger screens */
+  .mobile-menu {
+    display: none !important;
+    opacity: 0 !important;
+    max-height: 0 !important;
   }
 }

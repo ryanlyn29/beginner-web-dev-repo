@@ -62,7 +62,7 @@ body {
   align-items: center;
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid #d1d5db;
-  padding: 0.4rem 1rem;
+  padding: 0.5rem 1rem;
   border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 600;
@@ -73,7 +73,7 @@ body {
 
 @media (min-width: 768px) {
   .badge {
-    
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -173,6 +173,13 @@ body {
 
 .icon {
   font-size: 1.75rem;
+}
+
+.fa-chart-pie{
+  font-size: 3rem;
+}
+.fa-square-root-variable{
+  font-size: 2.5rem;
 }
 
 
