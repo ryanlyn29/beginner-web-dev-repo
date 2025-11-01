@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Navbar</title>
+  <link rel="stylesheet" href="../css/navbar.css" />
+  <script src="https://kit.fontawesome.com/605a1488ff.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <!-- Brand -->
+      <a href="/" class="nav-brand">
+        <i class="fa-solid fa-note-sticky"></i>
+        WhiteFlow
+      </a>
+
+      <!-- Desktop Links -->
+      <div class="nav-links" id="navLinks">
+        <span class="nav-highlight" id="navHighlight"></span>
+        <a href="/map" class="nav-item">Extra</a>
+        <a href="/collab" class="nav-item">Board</a>
+        <a href="/chat" class="nav-item">Chat</a>
+      </div>
+
+      <!-- Auth Buttons -->
+      <div class="auth-buttons" id="authButtons">
+        <a href="/login" class="login-btn">Log in</a>
+        <a href="/signup" class="signup-btn">Sign up</a>
+      </div>
+
+      <!-- Mobile Toggle -->
+      <button class="mobile-toggle" id="mobileToggle">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Dropdown -->
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="/map" class="mobile-item">Extra</a>
+      <a href="/collab" class="mobile-item">Board</a>
+      <a href="/chat" class="mobile-item">Chat</a>
+      <a href="/login" class="mobile-item border">Log in</a>
+      <a href="/signup" class="mobile-item solid">Sign up</a>
+    </div>
+  </nav>
+
+  <script src="../javascript/navbar.js"></script>
+</body>
+</html>
