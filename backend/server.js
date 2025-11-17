@@ -1,4 +1,6 @@
 import express  from 'express'
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import redis from './redis.js'
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +10,13 @@ const { auth, requiresAuth } = pkg;
 
 dotenv.config();
 const app = express()
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.AUTH0_BASE_URL || "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
 const port = 3000
 
 const __filename = fileURLToPath(import.meta.url);
@@ -135,8 +144,22 @@ app.get("/chat", requiresAuth(), (req, res) => {
   });
 });
 
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
 
+  // Test event - remove later
+  socket.on('test-message', (data) => {
+    console.log('Received test message:', data);
+    socket.emit('test-response', { message: 'Server received your message!' });
+  });
 
-app.listen(port, () => {
-    console.log(`Example app listening on port ${3000}`)
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+httpServer.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+    console.log(`Socket.IO ready`);
 })

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-top: 0;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    .disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px 10px 0;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #messages {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      min-height: 100px;
+    }
+    .message {
+      padding: 5px;
+      margin: 5px 0;
+      border-left: 3px solid #007bff;
+      padding-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 Socket.IO Connection Test</h1>
+
+    <div id="status" class="status disconnected">
+      ❌ Not Connected
+    </div>
+
+    <button onclick="sendTestMessage()">Send Test Message</button>
+
+    <div id="messages">
+      <strong>Messages:</strong>
+    </div>
+  </div>
+
+  <!-- Socket.IO Client Library -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    const socket = io();
+    const statusDiv = document.getElementById('status');
+    const messagesDiv = document.getElementById('messages');
+
+    // Connection event
+    socket.on('connect', () => {
+      console.log('✅ Connected to server!');
+      statusDiv.className = 'status connected';
+      statusDiv.textContent = '✅ Connected - Socket ID: ' + socket.id;
+      addMessage('Connected to server!', 'green');
+    });
+
+    // Disconnection event
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from server');
+      statusDiv.className = 'status disconnected';
+      statusDiv.textContent = '❌ Disconnected';
+      addMessage('Disconnected from server', 'red');
+    });
+
+    // Test response event
+    socket.on('test-response', (data) => {
+      console.log('📨 Received from server:', data);
+      addMessage('Server says: ' + data.message, 'blue');
+    });
+
+    // Function to send test message
+    function sendTestMessage() {
+      const message = 'Hello from client! Time: ' + new Date().toLocaleTimeString();
+      socket.emit('test-message', { message });
+      addMessage('Sent: ' + message, 'gray');
+    }
+
+    // Helper to add messages to the display
+    function addMessage(text, color) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message';
+      messageEl.style.borderLeftColor = color;
+      messageEl.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      messagesDiv.appendChild(messageEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html>
