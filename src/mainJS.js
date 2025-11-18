@@ -37,6 +37,7 @@ const routes = {
     "/chat": "Pages/chats.html",
     "/login": "Pages/login.html",
     "/signin": "Pages/signin.html",
+    "/room": "Pages/room.html",
 };
 
 // Normalize path helper - removes base path and trailing slashes
@@ -75,10 +76,10 @@ async function navigate(path) {
 
     console.log("Loading route:", route);
 
-    // Show/Hide Navbar
+    // Show/Hide Navbar 
     if (navbarContainer) {
+        // HIDE navbar for specific pages including /room and /chat
         if (path === "/board" || path === "/chat" || path === "/login" || path === "/signin") {
-            // Hide navbar for board, chat, and login pages
             navbarContainer.style.display = 'none';
             console.log("Navbar hidden for:", path);
         } else {
@@ -94,7 +95,11 @@ async function navigate(path) {
     // Call navbar state updater
     if (window.setActiveNavState) window.setActiveNavState();
 
-    // ---  Load route-specific JS ---
+    // ----------------------------------------------------------------------
+    // --- LOAD ROUTE-SPECIFIC JS ---
+    // ----------------------------------------------------------------------
+
+    // --- BOARD ROUTE (/board) ---
     if (path === "/board") {
         try {
             // Check if scripts are already loaded (using sentinel value like window.initBoard)
@@ -169,7 +174,10 @@ async function navigate(path) {
         } catch (err) {
             console.error("Failed to load board/chat/pomodoro scripts:", err);
         }
-    } else if (path === "/login") {
+    } 
+    
+    // --- LOGIN ROUTE (/login) ---
+    else if (path === "/login") {
         try {
             // Check if login script is already loaded
             if (!window.loginInitialized) {
@@ -199,6 +207,72 @@ async function navigate(path) {
             }
         } catch (err) {
             console.error("Failed to load login script:", err);
+        }
+    } 
+    
+    // --- SIGNIN ROUTE (/signin) --- 
+    else if (path === "/signin") {
+        try {
+            // Check if signin script is already loaded
+            if (!window.signinInitialized) {
+                // Remove old script if it exists
+                const oldScript = document.querySelector('script[src*="signin.js"]');
+                if (oldScript) {
+                    oldScript.remove();
+                }
+
+                const signinScript = document.createElement("script");
+                signinScript.src = "javascript/signin.js";
+                document.body.appendChild(signinScript);
+
+                signinScript.onload = () => {
+                    console.log("✅ Signin script loaded");
+                    window.signinInitialized = true;
+                };
+
+                signinScript.onerror = () => {
+                    console.error("Failed to load signin.js");
+                };
+            } else {
+                // Re-dispatch DOMContentLoaded if already loaded
+                console.log("Re-initializing signin page...");
+                const event = new Event('DOMContentLoaded');
+                document.dispatchEvent(event);
+            }
+        } catch (err) {
+            console.error("Failed to load signin script:", err);
+        }
+    }
+    
+    // --- ROOM ROUTE (/room) ---
+    else if (path === "/room") { 
+        try {
+            // Check if the room script is already loaded (using a sentinel value)
+            if (!window.roomInitialized) {
+                // Remove old script if it exists to ensure re-initialization works
+                const oldScript = document.querySelector('script[src*="room.js"]');
+                if (oldScript) {
+                    oldScript.remove();
+                }
+
+                const roomScript = document.createElement("script");
+                roomScript.src = "javascript/room.js"; 
+                document.body.appendChild(roomScript);
+
+                roomScript.onload = () => {
+                    console.log("✅ Room script loaded");
+                    // Functions like showCreateRoom are attached globally
+                    window.roomInitialized = true; 
+                };
+
+                roomScript.onerror = () => {
+                    console.error("Failed to load room.js");
+                };
+            } else {
+                console.log("Room script already loaded.");
+            }
+        } catch (err) {
+            console.error("Failed to load room script:", err);
         }
     }
 }
