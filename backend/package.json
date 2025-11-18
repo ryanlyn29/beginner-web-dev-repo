@@ -4,6 +4,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
+    "show-users": "node show-redis-users.js",
+    "watch": "node watch-redis.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -14,7 +17,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-openid-connect": "^2.19.2",
     "express-session": "^1.18.2",
-    "redis": "^5.9.0"
+    "redis": "^5.9.0",
+    "socket.io": "^4.8.1"
   }
 }
