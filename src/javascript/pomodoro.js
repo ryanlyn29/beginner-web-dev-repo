@@ -349,7 +349,7 @@ window.initPomodoro = function() {
             if (state.isPomodoroOpen) {
                 toggleGameView(true);
             }
-            alert("Focus session finished! Starting Break.");
+            window.showCustomAlert("Pomodoro Session Complete!", "Great work! Starting your break now.", "success");
             
         } else {
             // Break finished
@@ -358,7 +358,7 @@ window.initPomodoro = function() {
             
             // Auto-hide games
             toggleGameView(false);
-            alert("Break finished! Time to focus.");
+            window.showCustomAlert("Break is Over!", "Time to focus again.", "info");
         }
         
         updateDisplay();

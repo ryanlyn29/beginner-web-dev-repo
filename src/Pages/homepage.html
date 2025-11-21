@@ -592,7 +592,7 @@
            </svg>
 
            <!-- Sprint Task List -->
-           <div class="absolute bottom-16 left-20 md:left-32 w-64 bg-white border border-gray-200/80 rounded-2xl overflow-hidden z-10 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+           <div class="absolute bottom-20 left-20 md:left-32 w-64 bg-white border border-gray-200/80 rounded-2xl overflow-hidden z-10 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
               <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
                  <h4 class="text-xs font-bold text-gray-900 flex items-center gap-2">
                     <div class="w-2 h-2 rounded-sm bg-indigo-500"></div>
@@ -623,12 +623,12 @@
 
            <!-- Cursors -->
            <div class="absolute top-[40%] left-[40%] z-30 pointer-events-none animate-float-slow">
-              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-blue-500 text-xl"></i>
+              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-blue-500 text-sm"></i>
               <div class="absolute top-5 left-4 bg-blue-500 text-white text-[12px] font-bold px-2 py-0.5 rounded-full shadow-sm">Alex</div>
            </div>
 
            <div class="absolute bottom-[30%] right-[30%] z-30 pointer-events-none animate-float-slow delay-700">
-              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-green-500 text-xl"></i>
+              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-green-500 text-sm"></i>
               <div class="absolute top-5 left-4 bg-green-500 text-white text-[12px] font-bold px-2 py-0.5 rounded-full shadow-sm">Jordan</div>
            </div>
 
@@ -776,9 +776,10 @@
       <div class="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
         <!-- Brand & Bio -->
         <div class="space-y-4">
-          <span class="badge bg-white/10 text-white border-white/20">
-            <i class="fa-solid fa-chalkboard text-gray-300"></i> Whiteboard
-          </span>
+          <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-shapes text-xs bg-[#333] px-2.5 py-1.5 text-white rounded-lg"></i>
+                  <span class="font-semibold font-inter">Whiteflow</span> 
+          </div>
           <p class="text-gray-400 text-sm leading-relaxed">
             The fastest way to visualize your ideas. Built for teams who move fast and break things (but not their workflow).
           </p>

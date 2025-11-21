@@ -2,9 +2,22 @@
  * games.js
  * Manages mini-games for the Pomodoro break sessions.
  * Features: Connect 4, Match 3 (Candy Crush), Memory, Endless Runner.
+ * UI: Clean, flat, modern, consistent with the "Infinite Whiteboard" aesthetic.
  */
 
-// Define the Games object first
+// Inject subtle slide animation style
+const gameStyles = document.createElement('style');
+gameStyles.innerHTML = `
+@keyframes softSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-soft-slide {
+    animation: softSlideUp 0.4s ease-out forwards;
+}
+`;
+document.head.appendChild(gameStyles);
+
 const Games = {
     activeGame: null,
     view: null,
@@ -24,13 +37,17 @@ const Games = {
             return;
         }
 
-        // Prevent duplicate event listeners by replacing the button if it exists
+        // Re-bind back button with consistent clean styling
         if (this.backBtn) {
             const newBackBtn = this.backBtn.cloneNode(true);
             if(this.backBtn.parentNode) {
                 this.backBtn.parentNode.replaceChild(newBackBtn, this.backBtn);
             }
             this.backBtn = newBackBtn;
+            
+            // Simple, clean pill button matching other UI elements
+            this.backBtn.className = "absolute top-4 left-4 z-20 text-xs font-medium text-gray-400 hover:text-white hidden flex items-center gap-2 bg-[#1a1b1d] border border-[#222426] px-3 py-1.5 rounded-full transition-colors hover:border-gray-600";
+            this.backBtn.innerHTML = '<i class="fa-solid fa-arrow-left text-[10px]"></i> <span>Back</span>';
             
             this.backBtn.onclick = () => {
                 this.stopActiveGame();
@@ -39,21 +56,17 @@ const Games = {
         }
 
         this.renderMenu();
-        this.showMenu(); // Default state inside game view
+        this.showMenu(); // Default state
         
         this.initialized = true;
-        console.log("Games module initialized.");
+        console.log("Games module initialized (Clean UI).");
     },
 
-    // Called by Pomodoro to ensure games are ready to be shown
     enable() {
         if (!this.initialized) {
             this.init();
-        } else {
-            // Ensure menu is rendered if selector is empty
-            if (this.selector && this.selector.children.length === 0) {
-                this.renderMenu();
-            }
+        } else if (this.selector && this.selector.children.length === 0) {
+            this.renderMenu();
         }
     },
 
@@ -62,29 +75,35 @@ const Games = {
         this.selector.innerHTML = '';
         
         const games = [
-            { id: 'connect4', name: 'Connect 4', icon: 'fa-circle-nodes', color: 'bg-blue-500 ' },
-            { id: 'match3', name: 'Candy Match', icon: 'fa-candy-cane', color: 'bg-pink-500 ' },
-            { id: 'memory', name: 'Memory', icon: 'fa-clone', color: 'bg-emerald-700' },
-            { id: 'runner', name: 'Dino Run', icon: 'fa-dragon', color: 'bg-orange-500 ' }
+            { id: 'connect4', name: 'Connect 4', icon: 'fa-circle-nodes', accent: 'text-blue-500' },
+            { id: 'match3', name: 'Candy Match', icon: 'fa-candy-cane', accent: 'text-pink-500' },
+            { id: 'memory', name: 'Memory', icon: 'fa-brain', accent: 'text-emerald-500' },
+            { id: 'runner', name: 'Dino Run', icon: 'fa-dragon', accent: 'text-orange-500' }
         ];
 
-        games.forEach(g => {
+        games.forEach((g, index) => {
             const btn = document.createElement('button');
-            // Rounded rectangle card styling
-            btn.className = `snap-center flex-shrink-0 w-36 h-48 rounded-2xl ${g.color} text-white  transition-all duration-300 flex flex-col items-center justify-center gap-4 relative overflow-hidden group border border-white/10 cursor-pointer`;
+            // Clean card styling: dark gray background, subtle border, consistent with settings/popups
+            btn.className = `
+                flex-shrink-0 w-36 h-40 rounded-xl 
+                bg-[#1a1b1d] border border-[#222426] 
+                text-gray-300 hover:text-white
+                hover:bg-[#222426] hover:border-gray-600 
+                transition-all duration-200 ease-out
+                flex flex-col items-center justify-center gap-3
+                animate-soft-slide cursor-pointer group
+            `;
             
-            // Shine effect
-            const shine = document.createElement('div');
-            shine.className = 'absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300';
-            btn.appendChild(shine);
+            // Stagger animation slightly
+            btn.style.animationDelay = `${index * 50}ms`;
+            btn.style.opacity = '0'; // Initial state for animation
 
-            // Content
             const icon = document.createElement('i');
-            icon.className = `fa-solid ${g.icon} fa-3x `;
+            icon.className = `fa-solid ${g.icon} text-3xl mb-1 text-gray-500 group-hover:${g.accent} transition-colors duration-200`;
             btn.appendChild(icon);
 
             const label = document.createElement('span');
-            label.className = 'text-sm font-bold tracking-wide drop-shadow-sm';
+            label.className = 'text-xs font-semibold tracking-wide';
             label.innerText = g.name;
             btn.appendChild(label);
 
@@ -92,7 +111,7 @@ const Games = {
             this.selector.appendChild(btn);
         });
         
-        // Add padding element for better scrolling experience
+        // Spacer for scroll
         const spacer = document.createElement('div');
         spacer.className = 'w-4 flex-shrink-0';
         this.selector.appendChild(spacer);
@@ -100,17 +119,25 @@ const Games = {
 
     showMenu() {
         if (!this.selector) return;
-        this.selector.style.display = 'flex'; // Ensure flex display for horizontal scroll
+        
+        this.selector.style.display = 'flex';
         this.container.style.display = 'none';
         this.backBtn.style.display = 'none';
         this.container.innerHTML = ''; 
+        
+        // Re-render to ensure animations trigger nicely
+        this.renderMenu(); 
     },
 
     startGame(gameId) {
+        // Simple fade out
         this.selector.style.display = 'none';
         this.container.style.display = 'flex';
-        this.backBtn.style.display = 'block';
+        this.backBtn.style.display = 'flex';
         this.container.innerHTML = ''; 
+        
+        // Fade in container
+        this.container.className = "w-full h-full flex flex-col items-center justify-center p-2 animate-soft-slide";
 
         switch(gameId) {
             case 'connect4':
@@ -142,7 +169,6 @@ window.Games = Games;
 
 // Initialization Helper
 window.initGames = function() {
-    console.log("Initializing Games module via initGames...");
     if (window.Games) {
         window.Games.init();
     }
@@ -150,7 +176,7 @@ window.initGames = function() {
 
 
 /* =========================================
-   GAME 1: CONNECT FOUR
+   GAME 1: CONNECT FOUR (Clean UI)
    ========================================= */
 class ConnectFour {
     constructor(root) {
@@ -167,21 +193,24 @@ class ConnectFour {
         this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
         
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex flex-col items-center gap-1 w-full h-full justify-center';
+        wrapper.className = 'flex flex-col items-center gap-4 w-full h-full justify-center';
         
+        // Status Indicator
         this.status = document.createElement('div');
-        this.status.className = 'text-sm font-bold text-white';
-        this.status.innerText = "Red's Turn";
+        this.status.className = 'text-sm font-medium text-gray-300 flex items-center gap-2 bg-[#1a1b1d] px-3 py-1.5 rounded-lg border border-[#222426]';
+        this.status.innerHTML = `<div class="w-2 h-2 rounded-full bg-red-500"></div> Red's Turn`;
         wrapper.appendChild(this.status);
 
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-7 gap-1 bg-blue-800 p-1.5 rounded-lg border-2 border-blue-900 shadow-lg';
+        // Flat dark blue board
+        grid.className = 'grid grid-cols-7 gap-1.5 bg-[#1e3a8a] p-2 rounded-lg border border-[#172554] shadow-sm';
         grid.style.width = 'fit-content'; 
 
         for (let r = 0; r < this.rows; r++) {
             for (let c = 0; c < this.cols; c++) {
                 const cell = document.createElement('div');
-                cell.className = 'w-6 h-6 rounded-full bg-blue-900 cursor-pointer hover:bg-blue-700 transition-colors shadow-inner';
+                // Empty cells are dark holes
+                cell.className = 'w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-[#0f172a] cursor-pointer hover:bg-[#1e293b] transition-colors';
                 cell.dataset.col = c; 
                 cell.onclick = () => this.handleClick(c);
                 grid.appendChild(cell);
@@ -190,9 +219,10 @@ class ConnectFour {
         this.gridEl = grid;
         wrapper.appendChild(grid);
 
+        // Restart Button
         const resetBtn = document.createElement('button');
-        resetBtn.className = 'text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-full text-white mt-2 transition-colors';
-        resetBtn.innerText = 'Restart Game';
+        resetBtn.className = 'text-xs text-gray-400 hover:text-white bg-transparent hover:bg-[#1a1b1d] border border-transparent hover:border-[#222426] px-3 py-1.5 rounded-md transition-all';
+        resetBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-1"></i> Restart';
         resetBtn.onclick = () => {
             this.root.innerHTML = '';
             this.init();
@@ -218,17 +248,23 @@ class ConnectFour {
             
             const index = targetRow * this.cols + col;
             const cell = this.gridEl.children[index];
-            cell.classList.remove('bg-blue-900', 'hover:bg-blue-700');
+            
+            cell.classList.remove('bg-[#0f172a]', 'hover:bg-[#1e293b]');
+            // Matte colors
             cell.classList.add(this.currentPlayer === 1 ? 'bg-red-500' : 'bg-yellow-400');
-            cell.classList.add('animate-bounce-in', 'shadow-md');
+            cell.classList.add('animate-soft-slide');
 
             if (this.checkWin(targetRow, col)) {
-                this.status.innerText = (this.currentPlayer === 1 ? "Red" : "Yellow") + " Wins!";
-                this.status.className = `text-base font-bold ${this.currentPlayer === 1 ? 'text-red-400' : 'text-yellow-300'} animate-bounce-in`;
+                const winner = this.currentPlayer === 1 ? "Red" : "Yellow";
+                const colorClass = this.currentPlayer === 1 ? "text-red-400" : "text-yellow-300";
+                this.status.innerHTML = `<span class="${colorClass} font-bold">${winner} Wins!</span>`;
+                this.status.className = "text-sm font-medium bg-[#1a1b1d] px-4 py-2 rounded-lg border border-[#222426]";
                 this.gameOver = true;
             } else {
                 this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-                this.status.innerText = (this.currentPlayer === 1 ? "Red" : "Yellow") + "'s Turn";
+                const nextColor = this.currentPlayer === 1 ? "bg-red-500" : "bg-yellow-400";
+                const nextName = this.currentPlayer === 1 ? "Red" : "Yellow";
+                this.status.innerHTML = `<div class="w-2 h-2 rounded-full ${nextColor}"></div> ${nextName}'s Turn`;
             }
         }
     }
@@ -257,7 +293,7 @@ class ConnectFour {
 }
 
 /* =========================================
-   GAME 2: CANDY MATCH (Match 3)
+   GAME 2: CANDY MATCH (Clean UI)
    ========================================= */
 class MatchThree {
     constructor(root) {
@@ -269,7 +305,7 @@ class MatchThree {
         this.score = 0;
         this.draggedTile = null;
         this.replacedTile = null;
-        this.isProcessing = false; // Prevent moves while animating
+        this.isProcessing = false;
         this.init();
     }
 
@@ -278,12 +314,12 @@ class MatchThree {
         wrapper.className = 'flex flex-col items-center justify-center h-full w-full';
 
         this.scoreEl = document.createElement('div');
-        this.scoreEl.className = 'text-white font-bold mb-2 text-sm bg-gray-800 px-3 py-1 rounded-full';
-        this.scoreEl.innerText = 'Score: 0';
+        this.scoreEl.className = 'text-gray-300 font-mono text-xs mb-3 bg-[#1a1b1d] border border-[#222426] px-3 py-1 rounded';
+        this.scoreEl.innerText = 'SCORE: 0';
         wrapper.appendChild(this.scoreEl);
 
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-8 gap-0.5 bg-gray-800 p-1 rounded border border-gray-600 shadow-xl select-none';
+        grid.className = 'grid grid-cols-8 gap-1 bg-[#151313] p-2 rounded-xl border border-[#222426] select-none';
         
         this.gridEl = grid;
         wrapper.appendChild(grid);
@@ -298,10 +334,11 @@ class MatchThree {
         for (let i = 0; i < this.width * this.height; i++) {
             const tile = document.createElement('div');
             const color = this.randomColor();
-            tile.className = `w-6 h-6 rounded-sm cursor-grab active:cursor-grabbing ${color} transition-transform hover:scale-105`;
+            // Simple rounded squares, no fancy effects
+            tile.className = `w-7 h-7 rounded-sm cursor-grab active:cursor-grabbing ${color} hover:brightness-110 transition-opacity`;
             tile.setAttribute('draggable', true);
             tile.setAttribute('id', i);
-            tile.dataset.color = color; // Use dataset for easier checking
+            tile.dataset.color = color;
             
             tile.addEventListener('dragstart', this.dragStart.bind(this));
             tile.addEventListener('dragover', (e) => e.preventDefault());
@@ -312,9 +349,6 @@ class MatchThree {
             this.gridEl.appendChild(tile);
             this.board.push(tile);
         }
-        
-        // Initial check to ensure playable state, but let's leave randomness for fun
-        // If we wanted no matches at start, we'd run checkMatchesAndFill() here.
         this.checkMatchesAndFill(); 
     }
 
@@ -326,21 +360,21 @@ class MatchThree {
             return;
         }
         this.draggedTile = e.target; 
+        this.draggedTile.style.opacity = '0.5';
     }
     
     dragDrop(e) { this.replacedTile = e.target; }
 
     dragEnd() {
+        if (this.draggedTile) this.draggedTile.style.opacity = '1';
+        
         if (!this.replacedTile || !this.draggedTile || this.isProcessing) return;
 
         let draggedId = parseInt(this.draggedTile.id);
         let replacedId = parseInt(this.replacedTile.id);
         
-        // Check adjacency
         const validMoves = [draggedId - 1, draggedId - this.width, draggedId + 1, draggedId + this.width];
         const validMove = validMoves.includes(replacedId);
-        
-        // Prevent wrapping moves (e.g. left edge to right edge of previous row)
         const isRowWrap = Math.abs(draggedId % this.width - replacedId % this.width) > 1;
 
         if (validMove && !isRowWrap) {
@@ -348,7 +382,6 @@ class MatchThree {
             
             const matches = this.findMatches();
             if (matches.length === 0) {
-                // Swap back if no match
                 setTimeout(() => this.swapTiles(this.draggedTile, this.replacedTile), 200);
             } else {
                 this.checkMatchesAndFill();
@@ -363,14 +396,9 @@ class MatchThree {
         const color1 = tile1.dataset.color;
         const color2 = tile2.dataset.color;
         
-        // Update visual classes
-        tile1.classList.remove(color1);
-        tile1.classList.add(color2);
-        
-        tile2.classList.remove(color2);
-        tile2.classList.add(color1);
+        tile1.className = tile1.className.replace(color1, color2);
+        tile2.className = tile2.className.replace(color2, color1);
 
-        // Update data state
         tile1.dataset.color = color2;
         tile2.dataset.color = color1;
     }
@@ -378,7 +406,7 @@ class MatchThree {
     findMatches() {
         const matchedIndices = new Set();
 
-        // 1. Horizontal Matches (3+)
+        // Horizontal
         for (let r = 0; r < this.height; r++) {
             for (let c = 0; c < this.width - 2; c++) {
                 let idx = r * this.width + c;
@@ -390,12 +418,12 @@ class MatchThree {
                 }
                 if (matchLen >= 3) {
                     for (let k = 0; k < matchLen; k++) matchedIndices.add(idx + k);
-                    c += matchLen - 1; // Skip detected match
+                    c += matchLen - 1;
                 }
             }
         }
 
-        // 2. Vertical Matches (3+)
+        // Vertical
         for (let c = 0; c < this.width; c++) {
             for (let r = 0; r < this.height - 2; r++) {
                 let idx = r * this.width + c;
@@ -411,26 +439,6 @@ class MatchThree {
                 }
             }
         }
-
-        // 3. Square/Rectangular Matches (2x2)
-        for (let r = 0; r < this.height - 1; r++) {
-            for (let c = 0; c < this.width - 1; c++) {
-                let idx = r * this.width + c;
-                const color = this.board[idx].dataset.color;
-                if (color === 'transparent') continue;
-
-                if (this.board[idx + 1].dataset.color === color &&
-                    this.board[idx + this.width].dataset.color === color &&
-                    this.board[idx + this.width + 1].dataset.color === color) {
-                    
-                    matchedIndices.add(idx);
-                    matchedIndices.add(idx + 1);
-                    matchedIndices.add(idx + this.width);
-                    matchedIndices.add(idx + this.width + 1);
-                }
-            }
-        }
-
         return Array.from(matchedIndices);
     }
 
@@ -439,28 +447,22 @@ class MatchThree {
         const matches = this.findMatches();
         
         if (matches.length > 0) {
-            this.score += matches.length * 10; // Better scoring
-            this.scoreEl.innerText = `Score: ${this.score}`;
+            this.score += matches.length * 10;
+            this.scoreEl.innerText = `SCORE: ${this.score}`;
 
-            // Remove matches
             matches.forEach(idx => {
                 const tile = this.board[idx];
                 const oldColor = tile.dataset.color;
                 tile.classList.remove(oldColor);
-                tile.classList.add('bg-transparent'); // Invisible
+                tile.classList.add('bg-transparent');
                 tile.dataset.color = 'transparent';
             });
 
-            // Wait for visual clear
-            await new Promise(r => setTimeout(r, 250));
+            await new Promise(r => setTimeout(r, 200));
 
-            // Apply Gravity
             this.applyGravity();
-            
-            // Refill top
             this.refillBoard();
 
-            // Check again recursively
             setTimeout(() => this.checkMatchesAndFill(), 300);
         } else {
             this.isProcessing = false;
@@ -474,23 +476,18 @@ class MatchThree {
                 let idx = r * this.width + c;
                 if (this.board[idx].dataset.color !== 'transparent') {
                     if (writeRow !== r) {
-                        // Move tile down
                         let writeIdx = writeRow * this.width + c;
                         let tile = this.board[idx];
                         let target = this.board[writeIdx];
                         
-                        // Copy color/state
                         const color = tile.dataset.color;
                         target.className = target.className.replace(target.dataset.color, color);
                         if (target.classList.contains('bg-transparent')) {
                             target.classList.remove('bg-transparent');
-                            target.classList.add(color);
                         }
                         target.dataset.color = color;
                         
-                        // Clear source
-                        tile.classList.remove(color);
-                        tile.classList.add('bg-transparent');
+                        tile.className = tile.className.replace(color, 'bg-transparent');
                         tile.dataset.color = 'transparent';
                     }
                     writeRow--;
@@ -514,7 +511,7 @@ class MatchThree {
 }
 
 /* =========================================
-   GAME 3: MEMORY MATCH
+   GAME 3: MEMORY MATCH (Clean UI)
    ========================================= */
 class MemoryGame {
     constructor(root) {
@@ -529,34 +526,32 @@ class MemoryGame {
     }
 
     init() {
-        this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
-
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex flex-col items-center justify-center h-full gap-3';
+        wrapper.className = 'flex flex-col items-center justify-center h-full gap-4';
 
         const info = document.createElement('div');
-        info.innerText = 'Find pairs!';
-        info.className = 'text-white font-bold text-sm bg-gray-800 px-3 py-1 rounded-full';
+        info.innerText = 'Find Pairs';
+        info.className = 'text-gray-400 text-xs font-bold uppercase tracking-widest';
         wrapper.appendChild(info);
 
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-4 gap-2 p-2 bg-gray-800 rounded-lg';
+        grid.className = 'grid grid-cols-4 gap-2 p-2';
         
         const icons = ['fa-cat', 'fa-dog', 'fa-fish', 'fa-crow', 'fa-dragon', 'fa-hippo', 'fa-spider', 'fa-horse'];
         const items = [...icons, ...icons].sort(() => 0.5 - Math.random());
 
         items.forEach(iconClass => {
             const card = document.createElement('div');
-            card.className = 'w-10 h-10 bg-gray-600 rounded cursor-pointer relative flex items-center justify-center text-white text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg';
+            // Solid dark gray back, minimal styles
+            card.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-[#222426] border border-[#333] rounded-lg cursor-pointer flex items-center justify-center text-white text-xl transition-colors duration-200 hover:border-gray-500';
             card.dataset.icon = iconClass;
 
             const front = document.createElement('i');
-            front.className = `fa-solid ${iconClass} hidden animate-bounce-in`;
+            front.className = `fa-solid ${iconClass} hidden animate-soft-slide text-xl`;
             card.appendChild(front);
 
             const back = document.createElement('div');
-            back.className = 'absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800 rounded flex items-center justify-center';
-            back.innerHTML = '<i class="fa-solid fa-question text-blue-300/50 text-xs"></i>';
+            back.innerHTML = '<i class="fa-solid fa-question text-[#333] text-sm"></i>';
             card.appendChild(back);
 
             card.onclick = () => this.flipCard(card, front, back);
@@ -571,8 +566,9 @@ class MemoryGame {
         if (this.lockBoard) return;
         if (card === this.firstCard) return;
 
-        card.classList.remove('bg-gray-600');
-        card.classList.add('bg-green-600', 'rotate-y-180'); // Simulate flip effect via colors/state
+        // Flip visual state
+        card.classList.remove('bg-[#222426]', 'border-[#333]');
+        card.classList.add('bg-emerald-600', 'border-emerald-500'); 
         back.classList.add('hidden');
         front.classList.remove('hidden');
 
@@ -594,15 +590,24 @@ class MemoryGame {
     disableCards() {
         this.firstCard.onclick = null;
         this.secondCard.onclick = null;
-        this.firstCard.classList.add('opacity-50', 'cursor-default');
-        this.secondCard.classList.add('opacity-50', 'cursor-default');
+        
+        // Matched state: slightly dimmer green
+        const matchedClass = ['bg-green-800/50', 'border-green-700', 'text-green-400'];
+        const activeClass = ['bg-emerald-600', 'border-emerald-500', 'text-white'];
+        
+        this.firstCard.classList.remove(...activeClass);
+        this.firstCard.classList.add(...matchedClass);
+        
+        this.secondCard.classList.remove(...activeClass);
+        this.secondCard.classList.add(...matchedClass);
         
         this.matchesFound++;
         this.resetBoard();
+        
         if (this.matchesFound === 8) {
             const msg = document.createElement('div');
-            msg.innerText = 'Nice Job!';
-            msg.className = 'text-green-400 font-bold mt-2 text-base animate-bounce-in';
+            msg.innerText = 'Complete!';
+            msg.className = 'text-green-400 font-bold mt-2 text-sm';
             this.root.querySelector('div').appendChild(msg);
         }
     }
@@ -611,19 +616,17 @@ class MemoryGame {
         this.lockBoard = true;
         setTimeout(() => {
             if (this.firstCard) {
-                this.firstCard.classList.add('bg-gray-600');
-                this.firstCard.classList.remove('bg-green-600');
+                this.firstCard.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-[#222426] border border-[#333] rounded-lg cursor-pointer flex items-center justify-center text-white text-xl transition-colors duration-200 hover:border-gray-500';
                 this.firstCard.querySelector('.fa-solid').classList.add('hidden');
                 this.firstCard.lastChild.classList.remove('hidden');
             }
             if (this.secondCard) {
-                this.secondCard.classList.add('bg-gray-600');
-                this.secondCard.classList.remove('bg-green-600');
+                this.secondCard.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-[#222426] border border-[#333] rounded-lg cursor-pointer flex items-center justify-center text-white text-xl transition-colors duration-200 hover:border-gray-500';
                 this.secondCard.querySelector('.fa-solid').classList.add('hidden');
                 this.secondCard.lastChild.classList.remove('hidden');
             }
             this.resetBoard();
-        }, 800);
+        }, 700);
     }
 
     resetBoard() {
@@ -634,23 +637,26 @@ class MemoryGame {
 }
 
 /* =========================================
-   GAME 4: DINO RUNNER
+   GAME 4: DINO RUNNER (Clean UI)
    ========================================= */
 class DinoRunner {
     constructor(root) {
         this.root = root;
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = 280;
-        this.canvas.height = 140;
-        this.canvas.className = 'bg-gray-800 border border-gray-600 rounded cursor-pointer shadow-lg';
         
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex flex-col items-center justify-center h-full';
+        wrapper.className = 'flex flex-col items-center justify-center h-full gap-3';
+
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = 320;
+        this.canvas.height = 160;
+        // Minimal canvas border
+        this.canvas.className = 'bg-[#151313] border border-[#222426] rounded-lg cursor-pointer';
+        
         wrapper.appendChild(this.canvas);
         
         this.scoreEl = document.createElement('div');
-        this.scoreEl.className = 'text-white text-xs mt-2 font-mono';
-        this.scoreEl.innerText = "Click / Space to Jump";
+        this.scoreEl.className = 'text-gray-500 text-[10px] font-mono tracking-widest uppercase';
+        this.scoreEl.innerText = 'Click or Space to Jump';
         wrapper.appendChild(this.scoreEl);
         
         this.root.appendChild(wrapper);
@@ -658,12 +664,12 @@ class DinoRunner {
         this.ctx = this.canvas.getContext('2d');
         this.running = true;
         
-        this.dino = { x: 20, y: 110, w: 15, h: 15, dy: 0, jumpForce: 7, grounded: true };
+        this.dino = { x: 30, y: 130, w: 16, h: 16, dy: 0, jumpForce: 7, grounded: true };
         this.gravity = 0.4;
         this.obstacles = [];
         this.frame = 0;
         this.score = 0;
-        this.speed = 3;
+        this.speed = 3.5;
 
         this.bindInput();
         this.loop = this.loop.bind(this);
@@ -688,15 +694,15 @@ class DinoRunner {
         this.dino.dy += this.gravity;
         this.dino.y += this.dino.dy;
 
-        if (this.dino.y > 140 - 10 - this.dino.h) { // Ground level
-            this.dino.y = 140 - 10 - this.dino.h;
+        if (this.dino.y > 140 - this.dino.h) { 
+            this.dino.y = 140 - this.dino.h;
             this.dino.dy = 0;
             this.dino.grounded = true;
         }
 
         this.frame++;
         if (this.frame % 90 === 0) {
-            this.obstacles.push({ x: 280, y: 140 - 10 - (Math.random() > 0.8 ? 25 : 12), w: 8, h: 12 });
+            this.obstacles.push({ x: 320, y: 140 - (Math.random() > 0.8 ? 24 : 14), w: 10, h: 14 });
         }
 
         for (let i = 0; i < this.obstacles.length; i++) {
@@ -715,33 +721,41 @@ class DinoRunner {
             }
         }
         
-        this.scoreEl.innerText = `Score: ${this.score}`;
+        this.scoreEl.innerText = `SCORE: ${this.score}`;
         if(this.score % 10 === 0) this.speed += 0.001; 
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        // Ground
-        this.ctx.fillStyle = '#555';
-        this.ctx.fillRect(0, 130, this.canvas.width, 10);
+        
+        // Floor Line
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, 140);
+        this.ctx.lineTo(320, 140);
+        this.ctx.stroke();
 
-        // Dino
-        this.ctx.fillStyle = '#4ade80';
+        // Dino (Green Square)
+        this.ctx.fillStyle = '#10b981'; // Emerald-500
         this.ctx.fillRect(this.dino.x, this.dino.y, this.dino.w, this.dino.h);
 
-        // Obstacles
-        this.ctx.fillStyle = '#f87171';
+        // Obstacles (Red Rects)
+        this.ctx.fillStyle = '#ef4444'; // Red-500
         this.obstacles.forEach(obs => this.ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
 
         if (!this.running) {
-            this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.fillStyle = 'rgba(0,0,0,0.75)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
             this.ctx.fillStyle = '#fff';
-            this.ctx.font = 'bold 20px Arial';
+            this.ctx.font = 'bold 20px Inter, sans-serif';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('Game Over', this.canvas.width/2, 60);
-            this.ctx.font = '12px Arial';
-            this.ctx.fillText('Click to restart', this.canvas.width/2, 85);
+            this.ctx.fillText('GAME OVER', this.canvas.width/2, 70);
+            
+            this.ctx.fillStyle = '#9ca3af';
+            this.ctx.font = '11px Inter, sans-serif';
+            this.ctx.fillText('Click or Press Space to Restart', this.canvas.width/2, 95);
             
             this.canvas.onclick = () => {
                 this.destroy();
@@ -749,6 +763,17 @@ class DinoRunner {
                 new DinoRunner(this.root);
                 Games.activeGame = this; 
             };
+            // Also restart on space
+            const restartHandler = (e) => {
+                if (e.code === 'Space' && !this.running) {
+                    document.removeEventListener('keydown', restartHandler);
+                    this.destroy();
+                    this.root.innerHTML = '';
+                    new DinoRunner(this.root);
+                    Games.activeGame = this; 
+                }
+            };
+            document.addEventListener('keydown', restartHandler);
         }
     }
 

@@ -27,21 +27,37 @@
             background-color: #F9FAFB !important; /* gray-50 */
         }
         
-        /* --- Containers (Trackers, Sidebar, Settings) --- */
+        /* --- Containers (Trackers, Sidebar, Settings, Context Menu) --- */
         body.light-mode #tracker-container,
         body.light-mode #sidebar-container,
-        body.light-mode #settings-card {
+        body.light-mode #settings-card,
+        body.light-mode #share-popup,
+        body.light-mode #user-popup,
+        body.light-mode #custom-alert > div,
+        body.light-mode #input-modal > div,
+        body.light-mode #context-menu,
+        body.light-mode #history-tracker,
+        body.light-mode #history-tooltip {
             background-color: #FFFFFF !important;
             border: 1px solid #D1D5DB !important; /* Distinct light border */
             color: #1F2937 !important; /* gray-800 */
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
         }
 
+        /* Context Menu Hover Light Mode */
+        body.light-mode .context-menu-item:hover,
+        body.light-mode .history-dot:hover {
+            background-color: #F3F4F6 !important;
+        }
+
         /* --- Headers (Chat & Tracker) --- */
         body.light-mode #sidebar-expanded .bg-\[\#151313\],
-        body.light-mode #tracker-expanded .bg-\[\#151313\] {
+        body.light-mode #tracker-expanded .bg-\[\#151313\],
+        body.light-mode #settings-card .bg-\[\#151313\],
+        body.light-mode .popup-header {
             background-color: #E5E7EB !important; /* Light Gray Header */
             border-bottom-color: #D1D5DB !important;
+            color: #1F2937 !important;
         }
         
         body.light-mode #sidebar-expanded .font-semibold,
@@ -218,14 +234,13 @@
 
        .custom-scroll::-webkit-scrollbar {
             /* Set a common thickness for both axes */
-            width: 14px; 
-            height: 14px; 
+            width: 8px; 
+            height: 8px; 
             background: transparent;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: #848484;
+            background: #4B5563;
             border-radius: 9999px;
-            border: 4px solid transparent; 
             background-clip: padding-box; 
         }
         .custom-scroll::-webkit-scrollbar-button {
@@ -280,6 +295,98 @@
             width: 120px;
             height: 40px;
             border-radius: 1rem; /* rounded-2xl default */
+        }
+
+        /* History Tracker - Fixed Vertical Pill */
+        #history-tracker {
+            position: fixed;
+            right: 1.25rem; /* right-5 to match Undo/Redo */
+            top: calc(7.5% + 5rem); /* Position directly below the Undo/Redo container */
+            width: 2.2rem; /* Fixed width, matches collapsed sidebar width approximately */
+            max-height: 40vh; /* Fixed max height */
+            background-color: #100C08;
+            border: 1px solid #222426;
+            border-radius: 9999px; /* Pill shape */
+            z-index: 45;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem 0;
+            gap: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            scrollbar-width: none; /* Hide scrollbar FF */
+            -ms-overflow-style: none; /* Hide scrollbar IE */
+        }
+        
+        /* History Scrollbar Refinement - Hide completely */
+        #history-tracker::-webkit-scrollbar {
+            display: none; /* Hide scrollbar Chrome/Safari */
+        }
+        
+        .history-dot {
+            width: 0.75rem; /* w-3 */
+            height: 0.75rem; /* h-3 */
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        .history-dot:hover {
+            transform: scale(1.2);
+        }
+
+        /* Tooltip for History - Fixed positioning */
+        #history-tooltip {
+            position: fixed;
+            z-index: 60;
+            padding: 0.75rem 1rem; /* More padding like a card */
+            background-color: #100C08; /* Match Board Tracker BG */
+            color: white;
+            border-radius: 0.75rem; /* Rounded like other modals */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #222426; /* Match Board Tracker Border */
+            pointer-events: none;
+            display: none; /* Toggled by JS */
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 9rem;
+        }
+        
+        /* Tooltip Label Styling */
+        #tooltip-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.025em;
+        }
+        #tooltip-time {
+            font-size: 0.65rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+        
+        /* Tooltip Arrow (Right side, pointing to dot) */
+        #history-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -0.25rem; /* Stick out right */
+            transform: translateY(-50%) rotate(45deg);
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #100C08; /* Match BG */
+            border-top: 1px solid #222426; /* Match Border */
+            border-right: 1px solid #222426; /* Match Border */
+        }
+        
+        /* Light Mode overrides for History Tooltip Arrow */
+        body.light-mode #history-tooltip::after {
+            background-color: #FFFFFF !important;
+            border-color: #D1D5DB !important;
         }
 
         /* SVG Layer for Flow Edges */
@@ -338,6 +445,33 @@
             transform: scale(1) translateY(0);
             transition: opacity 0.1s ease-out, transform 0.1s ease-out;
         }
+
+        /* Folder Styles in Tracker */
+        .folder-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 1000px;
+            opacity: 1;
+            overflow: hidden;
+        }
+        .folder-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+        .folder-chevron {
+            transition: transform 0.2s;
+        }
+        .folder-chevron.collapsed {
+            transform: rotate(-90deg);
+        }
+        .drag-over-folder {
+            background-color: rgba(59, 130, 246, 0.2) !important;
+            border: 1px dashed #3b82f6 !important;
+        }
+        
+        /* Input Placeholder Style */
+        .placeholder-input::placeholder {
+            color: #9CA3AF; /* Gray-400 */
+        }
     </style>
 </head>
 
@@ -369,6 +503,17 @@
             <button id="redoBtn" class="w-9 h-9 bg-[#100C08]  hover:bg-black text-white rounded-b-3xl cursor-pointer   flex items-center justify-center transition-all border border-[#222426]" disabled title="Redo (Ctrl+Y)">
                 <i class="fas fa-redo fa-sm z-60"></i>
             </button>
+        </div>
+
+        <!-- History Tracker (Fixed Pill) -->
+        <div id="history-tracker" class="custom-scroll">
+            <!-- Dots injected by JS -->
+        </div>
+        
+        <!-- History Tooltip (Fixed Position) -->
+        <div id="history-tooltip">
+            <span id="tooltip-label" class="font-bold text-sm text-gray-200">Action</span>
+            <span id="tooltip-time" class="text-[10px] text-gray-400 mt-0.5">12:00 PM</span>
         </div>
 
         <!-- Toolbar -->
@@ -450,13 +595,17 @@
         </div>
 
         <div class="flex items-center gap-4 text-sm">
-            <i id="user-icon" class="fa-solid fa-user cursor-pointer"></i>
+            <div class="relative">
+                <i id="user-icon" class="fa-solid fa-user cursor-pointer hover:text-gray-300 transition-colors"></i>
+            </div>
             <i id="gear-icon" class="fa-solid fa-gear cursor-pointer hover:rotate-90 transition-transform duration-500 text-lg"></i>
             <div class="w-[1px] h-5 bg-gray-400 mx-1 rounded-4xl"></div>
-            <button class="rounded-xl px-3 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
-                <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                Share
-            </button>
+            <div class="relative">
+                <button id="share-btn" class="rounded-xl px-3 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    Share
+                </button>
+            </div>
             <button id="save-button" class="bg-blue-700 rounded-xl px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-900 transition-colors text-white">
                 Save
             </button>
@@ -467,6 +616,87 @@
         <i class="fa-solid fa-check fa-sm bg-green-600 rounded-full w-full h-full px-2 py-1.5 text-xs leading-none"></i>
         <span>Saved</span>
     </div>
+
+    <!-- CUSTOM ALERT POPUP -->
+    <div id="custom-alert" class="fixed top-[7.5%] left-1/2 -translate-x-1/2 z-[70] hidden items-center justify-center pointer-events-none">
+        <div class="bg-[#100C08] border border-[#222426] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 pointer-events-auto animate-bounce-in">
+            <div id="custom-alert-icon" class="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+                <i class="fa-solid fa-info"></i>
+            </div>
+            <div>
+                <h4 id="custom-alert-title" class="font-bold text-sm">Notification</h4>
+                <p id="custom-alert-msg" class="text-xs text-gray-400 mt-0.5">Message goes here.</p>
+            </div>
+            <button onclick="document.getElementById('custom-alert').classList.add('hidden'); document.getElementById('custom-alert').classList.remove('flex');" class="text-gray-500 hover:text-white ml-4">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- INPUT MODAL (Replacing Prompt) -->
+    <div id="input-modal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#100C08] border border-[#222426] w-80 rounded-2xl shadow-2xl p-5 animate-bounce-in">
+            <h3 id="input-modal-title" class="text-white font-bold text-sm mb-4">Enter Value</h3>
+            <input id="input-modal-field" type="text" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 mb-4" placeholder="...">
+            <div class="flex justify-end gap-2">
+                <button id="input-modal-cancel" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-400 hover:text-white hover:bg-[#222426] transition">Cancel</button>
+                <button id="input-modal-confirm" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHARE POPUP -->
+    <div id="share-popup" class="fixed top-[7.5%] right-5 z-[60] w-72 bg-[#100C08] border border-[#222426] rounded-2xl shadow-2xl hidden text-white">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-[#222426] popup-header bg-[#151313] rounded-t-xl">
+            <span class="font-semibold text-sm">Share Board</span>
+            <button id="close-share" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <p class="text-xs text-gray-400">Invite collaborators or copy the link.</p>
+            <div class="flex items-center gap-2">
+                <input type="text" value="https://whiteboard.pro/b/sprint-1" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-lg px-3 py-2 text-xs text-gray-300 outline-none" readonly>
+                <button id="share-copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-2 text-xs whitespace-nowrap transition-colors">
+                    Copy
+                </button>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+                <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold">JS</div>
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold">AL</div>
+                <button id="share-plus-btn" class="w-8 h-8 rounded-full bg-[#222426] border border-[#333] flex items-center justify-center text-gray-400 hover:text-white text-xs">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER POPUP -->
+    <div id="user-popup" class="fixed top-[7.5%] right-32 z-[60] w-64 bg-[#100C08] border border-[#222426] rounded-2xl shadow-2xl hidden text-white">
+        <div class="p-4 border-b border-[#222426] flex items-center gap-3 bg-[#151313] rounded-t-xl popup-header">
+            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">UL</div>
+            <div>
+                <div class="font-bold text-sm">User L</div>
+                <div class="text-xs text-gray-400">user@example.com</div>
+            </div>
+        </div>
+        <div class="py-2">
+            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+                <i class="fa-solid fa-user mr-2 w-4"></i> Profile
+            </button>
+            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+                <i class="fa-solid fa-gear mr-2 w-4"></i> Settings
+            </button>
+            <div class="border-t border-[#222426] my-1"></div>
+            <button class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#1a1b1d] transition-colors">
+                <i class="fa-solid fa-arrow-right-from-bracket mr-2 w-4"></i> Log Out
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div id="context-menu" class="fixed z-[9999] hidden w-48 bg-[#100C08] border border-[#222426] rounded-xl shadow-2xl py-1 text-white animate-bounce-in origin-top-left">
+        <!-- Items injected by JS -->
+    </div>
+
 
     <!-- RIGHT SIDEBAR (Chat) -->
     <div id="sidebar-container">
@@ -521,6 +751,13 @@
                     <span class="text-gray-400">Nodes</span>
                     <span id="tracker-count-nodes" class="text-white font-bold text-lg">0</span>
                 </div>
+            </div>
+            
+            <!-- Add Folder Button -->
+            <div class="px-3 py-2 bg-[#151313] border-b border-[#222426]">
+                 <button id="add-folder-btn" class="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-[#222426] hover:bg-[#2a2a2a] text-xs text-gray-300 transition-colors border border-[#333]">
+                    <i class="fa-solid fa-folder-plus"></i> New Folder
+                </button>
             </div>
 
             <!-- List -->
@@ -599,21 +836,6 @@
             <div class="p-4 bg-[#151313] border-t border-[#222426] text-center">
                 <p class="text-[10px] text-gray-500">Infinite Whiteboard v2.1.0</p>
             </div>
-        </div>
-    </div>
-
-    <div id="account-overlay" class="fixed inset-0 z-[52] flex items-center justify-center bg-black/50 backdrop-blur-sm" style="display: none;">
-        <div class="bg-gray-800 text-white rounded-xl p-8 shadow-2xl w-full max-w-md" onclick="event.stopPropagation()">
-            <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">User Account</h2>
-            <div class="flex items-center space-x-4 mb-6">
-                <i class="fa-solid fa-user-circle fa-2xl text-blue-400"></i>
-                <div>
-                    <p class="font-semibold">Logged in as: User L</p>
-                    <p class="text-sm text-gray-400">user.l@whiteboard.com</p>
-                </div>
-            </div>
-            <p class="text-gray-400 mb-4">This is a placeholder for account details and profile management.</p>
-            <button onclick="window.toggleAccount(false)" class="mt-6 w-full py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Close</button>
         </div>
     </div>
 

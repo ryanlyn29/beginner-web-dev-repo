@@ -1,4 +1,3 @@
-
 /************************************************************
  * INFINITE WHITEBOARD IMPLEMENTATION
  ************************************************************/
@@ -13,6 +12,7 @@ window.initBoard = function() {
     const scrollContainer = document.getElementById('scrollContainer');
     const customCursor = document.getElementById('customCursor');
     const edgesSvg = document.getElementById('edges-layer');
+    const contextMenu = document.getElementById('context-menu');
 
     if (!workspace || !scrollContainer || !customCursor || !edgesSvg) {
         console.error('Board elements not found in DOM. Cannot initialize.');
@@ -20,6 +20,76 @@ window.initBoard = function() {
     }
 
     console.log('✅ Board elements found, initializing...');
+    
+    // --- Global Popup Functions (Exposed for other scripts) ---
+    window.showCustomAlert = function(title, message, type = 'info') {
+        const alertEl = document.getElementById('custom-alert');
+        const titleEl = document.getElementById('custom-alert-title');
+        const msgEl = document.getElementById('custom-alert-msg');
+        const iconEl = document.getElementById('custom-alert-icon');
+        
+        if (!alertEl) return;
+        
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        
+        // Icon styling
+        iconEl.className = 'w-10 h-10 rounded-full flex items-center justify-center text-white ' + (type === 'success' ? 'bg-green-500' : 'bg-blue-500');
+        iconEl.innerHTML = type === 'success' ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-info"></i>';
+
+        alertEl.classList.remove('hidden');
+        alertEl.classList.add('flex');
+        
+        // Auto hide after 3s
+        setTimeout(() => {
+            alertEl.classList.add('hidden');
+            alertEl.classList.remove('flex');
+        }, 3000);
+    };
+
+    window.showInputModal = function(title, placeholder, callback) {
+        const modal = document.getElementById('input-modal');
+        const titleEl = document.getElementById('input-modal-title');
+        const inputEl = document.getElementById('input-modal-field');
+        const confirmBtn = document.getElementById('input-modal-confirm');
+        const cancelBtn = document.getElementById('input-modal-cancel');
+        
+        if (!modal) return;
+        
+        titleEl.innerText = title;
+        inputEl.value = '';
+        inputEl.placeholder = placeholder;
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        inputEl.focus();
+        
+        const close = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            inputEl.onkeydown = null;
+            confirmBtn.onclick = null;
+        };
+        
+        confirmBtn.onclick = () => {
+            if (inputEl.value.trim()) {
+                callback(inputEl.value.trim());
+                close();
+            }
+        };
+        
+        cancelBtn.onclick = close;
+        
+        // Handle enter key
+        inputEl.onkeydown = (e) => {
+            if (e.key === 'Enter' && inputEl.value.trim()) {
+                callback(inputEl.value.trim());
+                close();
+            } else if (e.key === 'Escape') {
+                close();
+            }
+        };
+    };
 
     /***********************
      * TOOLBAR ELEMENTS
@@ -59,9 +129,17 @@ window.initBoard = function() {
     const countFrames = document.getElementById('tracker-count-frames');
     const countNotes = document.getElementById('tracker-count-notes');
     const countNodes = document.getElementById('tracker-count-nodes');
+    const addFolderBtn = document.getElementById('add-folder-btn');
 
     /***********************
-     * SETTINGS ELEMENTS
+     * HISTORY UI ELEMENTS
+     ***********************/
+    const historyTracker = document.getElementById('history-tracker');
+    const historyTooltip = document.getElementById('history-tooltip');
+
+
+    /***********************
+     * SETTINGS & POPUP ELEMENTS
      ***********************/
     const settingsModal = document.getElementById('settings-modal');
     const settingsCard = document.getElementById('settings-card');
@@ -69,6 +147,14 @@ window.initBoard = function() {
     const gearIcon = document.getElementById('gear-icon');
     const closeSettingsBtn = document.getElementById('close-settings');
     const darkModeToggle = document.getElementById('dark-mode-toggle');
+    
+    const shareBtn = document.getElementById('share-btn');
+    const sharePopup = document.getElementById('share-popup');
+    const closeShareBtn = document.getElementById('close-share');
+    const sharePlusBtn = document.getElementById('share-plus-btn');
+    
+    const userIcon = document.getElementById('user-icon');
+    const userPopup = document.getElementById('user-popup');
 
     /***********************
      * STATE VARIABLES
@@ -78,6 +164,7 @@ window.initBoard = function() {
     let flowNodes = []; // Store flow nodes
     let sprintLists = []; // Store sprint task lists
     let edges = []; // Store connections: { id, startNodeId, startHandle, endNodeId, endHandle, pathEl }
+    let folders = []; // { id, name, collapsed }
     
     let activeTool = 'mouse';
     let penColor = '#1a1a1a';
@@ -142,9 +229,19 @@ window.initBoard = function() {
 
 
     /***********************
-     * TRACKER LOGIC
+     * TRACKER LOGIC WITH FOLDERS
      ***********************/
     let isTrackerOpen = false;
+
+    function createFolder() {
+        window.showInputModal("Create New Folder", "Folder Name", (name) => {
+             folders.push({ id: 'folder-' + Date.now(), name: name, collapsed: false });
+             updateTracker();
+             window.showCustomAlert("Success", `Folder "${name}" created`, "success");
+        });
+    }
+
+    if(addFolderBtn) addFolderBtn.onclick = createFolder;
 
     function updateTracker() {
         if (!trackerList) return;
@@ -156,16 +253,71 @@ window.initBoard = function() {
         if (countNotes) countNotes.innerText = notes.length;
         if (countNodes) countNodes.innerText = flowNodes.length;
 
-        const addItem = (icon, color, text, id) => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center gap-2 p-2 rounded-xl bg-[#2b3037] border border-gray-700 hover:bg-gray-700 transition cursor-pointer group';            
+        const allItems = [];
+        
+        // Collect all items
+        frames.forEach(f => {
+            allItems.push({
+                type: 'frame',
+                id: f.id,
+                icon: 'fa-solid fa-crop-simple',
+                color: 'bg-blue-600',
+                text: f.element.querySelector('.frame-title-input').value || 'Untitled Board',
+                folderId: f.folderId
+            });
+        });
+        sprintLists.forEach(l => {
+            allItems.push({
+                type: 'list',
+                id: l.id,
+                icon: 'fa-solid fa-list-check',
+                color: 'bg-indigo-600',
+                text: l.title || 'Sprint Tasks',
+                folderId: l.folderId
+            });
+        });
+        notes.forEach(n => {
+            allItems.push({
+                type: 'note',
+                id: n.dataset.id,
+                icon: 'fa-solid fa-note-sticky',
+                color: 'bg-yellow-500',
+                text: n.querySelector('textarea').value.substring(0, 20) || 'Empty Note',
+                folderId: n.dataset.folderId
+            });
+        });
+        flowNodes.forEach(n => {
+            let icon = 'fa-regular fa-circle';
+            let col = 'bg-emerald-600';
+            if(n.dataset.type === 'rect') { icon = 'fa-regular fa-square'; col = 'bg-blue-600'; }
+            if(n.dataset.type === 'diamond') { icon = 'fa-solid fa-diamond'; col = 'bg-purple-600'; }
+            allItems.push({
+                type: 'node',
+                id: n.dataset.id,
+                icon: icon,
+                color: col,
+                text: n.querySelector('span').innerText || 'Node',
+                folderId: n.dataset.folderId
+            });
+        });
+
+        const renderItem = (item, container) => {
+            const el = document.createElement('div');
+            el.className = 'flex items-center gap-2 p-2 rounded-xl bg-[#2b3037] border border-gray-700 hover:bg-gray-700 transition cursor-grab group';
+            el.draggable = true;
+            
+            // Drag Data
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({ itemId: item.id, itemType: item.type }));
+            });
+
             const iconDiv = document.createElement('div');
-            iconDiv.className = `w-6 h-6 rounded-md flex items-center justify-center ${color} text-white text-xs shrink-0`;            
-            iconDiv.innerHTML = `<i class="${icon}"></i>`;
+            iconDiv.className = `w-6 h-6 rounded-md flex items-center justify-center ${item.color} text-white text-xs shrink-0`;            
+            iconDiv.innerHTML = `<i class="${item.icon}"></i>`;
             
             const span = document.createElement('span');
             span.className = 'text-xs text-gray-300 truncate flex-1';
-            span.innerText = text;
+            span.innerText = item.text;
 
             const btnLocate = document.createElement('button');
             btnLocate.className = 'text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity';
@@ -173,69 +325,88 @@ window.initBoard = function() {
             btnLocate.title = "Locate on Board";
             btnLocate.onclick = (e) => {
                 e.stopPropagation();
-                locateElement(id);
+                locateElement(item.id);
             };
 
-            item.appendChild(iconDiv);
-            item.appendChild(span);
-            item.appendChild(btnLocate);
-            trackerList.appendChild(item);
+            el.appendChild(iconDiv);
+            el.appendChild(span);
+            el.appendChild(btnLocate);
+            container.appendChild(el);
         };
 
-        const addGroupHeader = (title) => {
+        // Render Folders
+        folders.forEach(folder => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'mb-2';
+            
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-800 rounded text-gray-400 hover:text-gray-200 transition-colors';
+            header.innerHTML = `
+                <i class="fa-solid fa-chevron-down text-[10px] folder-chevron ${folder.collapsed ? 'collapsed' : ''}"></i>
+                <i class="fa-regular fa-folder text-xs"></i>
+                <span class="text-xs font-bold uppercase tracking-wide flex-1 select-none">${folder.name}</span>
+            `;
+            
+            // Folder Toggle
+            header.onclick = () => {
+                folder.collapsed = !folder.collapsed;
+                updateTracker();
+            };
+
+            // Drop Target Logic
+            header.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                header.classList.add('drag-over-folder');
+            });
+            header.addEventListener('dragleave', () => {
+                header.classList.remove('drag-over-folder');
+            });
+            header.addEventListener('drop', (e) => {
+                e.preventDefault();
+                header.classList.remove('drag-over-folder');
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                assignToFolder(data.itemId, data.itemType, folder.id);
+            });
+
+            folderDiv.appendChild(header);
+
+            const content = document.createElement('div');
+            content.className = `folder-content pl-2 space-y-1 mt-1 border-l-2 border-gray-800 ml-2 ${folder.collapsed ? 'collapsed' : ''}`;
+            
+            // Find items in this folder
+            const folderItems = allItems.filter(i => i.folderId === folder.id);
+            folderItems.forEach(item => renderItem(item, content));
+            
+            folderDiv.appendChild(content);
+            trackerList.appendChild(folderDiv);
+        });
+
+        // Unassigned items
+        const unassigned = allItems.filter(i => !i.folderId);
+        if (unassigned.length > 0) {
             const header = document.createElement('div');
             header.className = 'text-[10px] uppercase font-bold text-gray-500 mt-3 mb-1 px-2 tracking-wider';
-            header.innerText = title;
+            header.innerText = 'Unassigned';
             trackerList.appendChild(header);
-        };
+            unassigned.forEach(item => renderItem(item, trackerList));
+        }
+    }
 
-        // Render Frames
-        if (frames.length > 0) addGroupHeader('Frames');
-        frames.forEach(f => {
-            const title = f.element.querySelector('.frame-title-input').value || 'Untitled Board';
-            addItem('fa-solid fa-crop-simple', 'bg-blue-600', title, f.id);
-        });
-
-        // Render Task Lists
-        if (sprintLists.length > 0) addGroupHeader('Task Lists');
-        sprintLists.forEach(l => {
-            addItem('fa-solid fa-list-check', 'bg-indigo-600', l.title || 'Sprint Tasks', l.id);
-        });
-
-        // Render Notes Grouped by Sprint
-        const sprintGroups = { 'Sprint 1': [], 'Sprint 2': [], 'Sprint 3': [], 'Unassigned': [] };
-        notes.forEach(n => {
-            const sprint = n.dataset.sprint || 'Unassigned';
-            const val = n.querySelector('textarea').value.substring(0, 20) || 'Empty Note';
-            const data = { val, id: n.dataset.id };
-            if (sprintGroups[sprint]) {
-                sprintGroups[sprint].push(data);
-            } else {
-                sprintGroups['Unassigned'].push(data);
-            }
-        });
-
-        Object.keys(sprintGroups).forEach(sprint => {
-            if (sprintGroups[sprint].length > 0) {
-                addGroupHeader(sprint === 'Unassigned' ? 'Notes' : sprint);
-                sprintGroups[sprint].forEach(item => {
-                    addItem('fa-solid fa-note-sticky', 'bg-yellow-500', item.val, item.id);
-                });
-            }
-        });
-
-        // Render Flow Nodes
-        if (flowNodes.length > 0) addGroupHeader('Flow Nodes');
-        flowNodes.forEach(n => {
-            let txt = n.querySelector('span').innerText || 'Node';
-            let icon = 'fa-regular fa-circle';
-            let col = 'bg-emerald-600';
-            
-            if(n.dataset.type === 'rect') { icon = 'fa-regular fa-square'; col = 'bg-blue-600'; }
-            if(n.dataset.type === 'diamond') { icon = 'fa-solid fa-diamond'; col = 'bg-purple-600'; }
-            
-            addItem(icon, col, txt, n.dataset.id);
-        });
+    function assignToFolder(itemId, type, folderId) {
+        if (type === 'frame') {
+            const f = frames.find(x => x.id == itemId);
+            if(f) f.folderId = folderId;
+        } else if (type === 'list') {
+            const l = sprintLists.find(x => x.id == itemId);
+            if(l) l.folderId = folderId;
+        } else if (type === 'note') {
+            const n = notes.find(x => x.dataset.id == itemId);
+            if(n) n.dataset.folderId = folderId;
+        } else if (type === 'node') {
+            const n = flowNodes.find(x => x.dataset.id == itemId);
+            if(n) n.dataset.folderId = folderId;
+        }
+        updateTracker();
     }
 
     function locateElement(id) {
@@ -279,7 +450,6 @@ window.initBoard = function() {
         if (!trackerContainer) return;
 
         // CSS transitions handle dimensions
-        // Collapsed state is now 95% from top as requested
         trackerContainer.style.top = isTrackerOpen ? "7.5%" : "95%"; 
         trackerContainer.style.transform = isTrackerOpen ? "translateY(0)" : "translateY(-50%)";
         trackerContainer.style.width = isTrackerOpen ? "16rem" : "2.5rem";
@@ -335,39 +505,96 @@ window.initBoard = function() {
     }
 
     /***********************
-     * SETTINGS & THEME LOGIC
+     * SETTINGS, POPUPS & THEME LOGIC
      ***********************/
-    function initSettings() {
-        const toggleSettings = (show) => {
+    function initSettingsAndPopups() {
+        // Generic Popup Toggler
+        const toggle = (modal, show) => {
             if (show) {
-                settingsModal.classList.remove('opacity-0', 'pointer-events-none');
-                settingsCard.classList.remove('scale-95');
-                settingsCard.classList.add('scale-100');
+                modal.classList.remove('hidden');
+                if(modal.id === 'settings-modal') {
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    settingsCard.classList.remove('scale-95');
+                    settingsCard.classList.add('scale-100');
+                }
             } else {
-                settingsModal.classList.add('opacity-0', 'pointer-events-none');
-                settingsCard.classList.remove('scale-100');
-                settingsCard.classList.add('scale-95');
+                if(modal.id === 'settings-modal') {
+                     modal.classList.add('opacity-0', 'pointer-events-none');
+                     settingsCard.classList.remove('scale-100');
+                     settingsCard.classList.add('scale-95');
+                } else {
+                    modal.classList.add('hidden');
+                }
             }
         };
 
-        if (gearIcon) {
-            gearIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleSettings(true);
-            });
+        // Settings
+        if (gearIcon) gearIcon.addEventListener('click', (e) => { e.stopPropagation(); toggle(settingsModal, true); });
+        if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => toggle(settingsModal, false));
+        if (settingsBackdrop) settingsBackdrop.addEventListener('click', () => toggle(settingsModal, false));
+
+        // Share
+        if (shareBtn) shareBtn.addEventListener('click', (e) => { 
+            e.stopPropagation();
+            userPopup.classList.add('hidden'); // Close others
+            if (sharePopup.classList.contains('hidden')) toggle(sharePopup, true);
+            else toggle(sharePopup, false);
+        });
+        if (closeShareBtn) closeShareBtn.addEventListener('click', () => toggle(sharePopup, false));
+        if (sharePlusBtn) sharePlusBtn.addEventListener('click', () => {
+            window.showCustomAlert("Coming Soon", "This feature is coming soon!", "info");
+        });
+
+        
+        // Copy Link Logic
+        const copyBtn = document.getElementById('share-copy-btn');
+        const shareInput = document.querySelector('#share-popup input');
+        if (copyBtn && shareInput) {
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(shareInput.value).then(() => {
+                    window.showCustomAlert("Link Copied", "Share link copied to clipboard", "success");
+                    sharePopup.classList.add('hidden');
+                });
+            };
         }
 
-        if (closeSettingsBtn) {
-            closeSettingsBtn.addEventListener('click', () => toggleSettings(false));
-        }
+        // User
+        if (userIcon) userIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sharePopup.classList.add('hidden'); // Close others
+            if (userPopup.classList.contains('hidden')) toggle(userPopup, true);
+            else toggle(userPopup, false);
+        });
+        
+        // User Popup buttons logic
+        const userButtons = userPopup.querySelectorAll('button');
+        userButtons.forEach(btn => {
+            btn.onclick = () => {
+                 const text = btn.innerText.trim();
+                 if (text.includes('Log Out')) {
+                     window.showCustomAlert("Logged Out", "You have been logged out safely.", "success");
+                 } else {
+                     window.showCustomAlert(text, "This feature is coming soon.", "info");
+                 }
+                 userPopup.classList.add('hidden');
+            };
+        });
 
-        if (settingsBackdrop) {
-            settingsBackdrop.addEventListener('click', () => toggleSettings(false));
-        }
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!sharePopup.contains(e.target) && e.target !== shareBtn && !shareBtn.contains(e.target)) {
+                sharePopup.classList.add('hidden');
+            }
+            if (!userPopup.contains(e.target) && e.target !== userIcon) {
+                userPopup.classList.add('hidden');
+            }
+        });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !settingsModal.classList.contains('opacity-0')) {
-                toggleSettings(false);
+            if (e.key === 'Escape') {
+                toggle(settingsModal, false);
+                sharePopup.classList.add('hidden');
+                userPopup.classList.add('hidden');
             }
         });
 
@@ -403,6 +630,9 @@ window.initBoard = function() {
         if (historyStep < history.length - 1) {
             history = history.slice(0, historyStep + 1);
         }
+        // Add timestamp for history tracking
+        action.timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
         history.push(action);
         if (history.length > MAX_HISTORY) {
             history.shift();
@@ -410,6 +640,7 @@ window.initBoard = function() {
             historyStep++;
         }
         updateUndoRedoUI();
+        renderHistoryTracker();
     }
 
     function updateUndoRedoUI() {
@@ -420,6 +651,121 @@ window.initBoard = function() {
         redoBtn.classList.toggle('opacity-80', historyStep >= history.length - 1);
     }
 
+    function getHistoryLabel(action) {
+        switch(action.type) {
+            case 'DRAW': return 'Drew on Frame';
+            case 'ADD_ELEMENT': return `Added ${action.elementType === 'flowNode' ? 'Node' : action.elementType === 'sprintList' ? 'Task List' : action.elementType}`;
+            case 'MOVE_ELEMENT': return `Moved ${action.elementType}`;
+            case 'ADD_EDGE': return 'Connected Nodes';
+            default: return 'Action';
+        }
+    }
+
+    function renderHistoryTracker() {
+        if (!historyTracker) return;
+        
+        historyTracker.innerHTML = '';
+        
+        // Render history items
+        // We'll include a "Start" state at index -1
+        
+        const createDot = (index, action) => {
+             const dot = document.createElement('div');
+             const isActive = index === historyStep;
+             const isFuture = index > historyStep;
+             const isStart = index === -1;
+
+             dot.className = 'history-dot';
+             
+             // Colors
+             if (isActive) {
+                 dot.classList.add('bg-blue-500', 'shadow-[0_0_8px_rgba(59,130,246,0.8)]');
+             } else if (isFuture) {
+                 dot.classList.add('bg-gray-700'); // Dimmed
+             } else {
+                 dot.classList.add('bg-gray-400'); // Past
+             }
+
+             dot.onclick = () => jumpToHistory(index);
+             
+             // Tooltip events
+             dot.onmouseenter = (e) => showHistoryTooltip(e, isStart ? "Initial State" : getHistoryLabel(action), isStart ? "" : action.timestamp);
+             dot.onmouseleave = hideHistoryTooltip;
+             
+             historyTracker.appendChild(dot);
+        };
+
+        // Start Dot
+        createDot(-1, null);
+
+        // History Dots
+        history.forEach((action, index) => {
+            createDot(index, action);
+        });
+        
+        // Auto-scroll to active dot
+        const activeDot = historyTracker.children[historyStep + 1];
+        if (activeDot) {
+            // Use requestAnimationFrame to wait for layout
+            requestAnimationFrame(() => {
+                 activeDot.scrollIntoView({ block: "center", behavior: "smooth" });
+            });
+        }
+    }
+
+    function showHistoryTooltip(e, label, time) {
+        if (!historyTooltip) return;
+        const dot = e.target;
+        const rect = dot.getBoundingClientRect();
+        
+        const tooltipLabel = document.getElementById('tooltip-label');
+        const tooltipTime = document.getElementById('tooltip-time');
+        
+        if(tooltipLabel) tooltipLabel.innerText = label;
+        if(tooltipTime) tooltipTime.innerText = time;
+        
+        historyTooltip.style.display = 'flex';
+        
+        // Position to the LEFT of the dot (dot is on right edge)
+        // Tooltip width might vary, so we align right edge of tooltip to left edge of dot with some gap
+        const gap = 24; // Increased from 12px to 24px
+        const tooltipRect = historyTooltip.getBoundingClientRect();
+        
+        const top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+        const left = rect.left - tooltipRect.width - gap;
+        
+        historyTooltip.style.top = `${top}px`;
+        historyTooltip.style.left = `${left}px`;
+        historyTooltip.style.opacity = '1';
+    }
+
+    function hideHistoryTooltip() {
+        if (!historyTooltip) return;
+        historyTooltip.style.display = 'none';
+        historyTooltip.style.opacity = '0';
+    }
+
+    function jumpToHistory(targetIndex) {
+        if (targetIndex === historyStep) return;
+        
+        // Undo until we reach target
+        while (historyStep > targetIndex) {
+            const action = history[historyStep];
+            undoAction(action);
+            historyStep--;
+        }
+        
+        // Redo until we reach target
+        while (historyStep < targetIndex) {
+            historyStep++;
+            const action = history[historyStep];
+            redoAction(action);
+        }
+        
+        updateUndoRedoUI();
+        renderHistoryTracker();
+    }
+
     if (undoBtn) {
         undoBtn.onclick = () => {
             if (historyStep >= 0) {
@@ -427,6 +773,7 @@ window.initBoard = function() {
                 undoAction(action);
                 historyStep--;
                 updateUndoRedoUI();
+                renderHistoryTracker();
             }
         };
     }
@@ -438,6 +785,7 @@ window.initBoard = function() {
                 const action = history[historyStep];
                 redoAction(action);
                 updateUndoRedoUI();
+                renderHistoryTracker();
             }
         };
     }
@@ -467,7 +815,10 @@ window.initBoard = function() {
                 // Also remove associated data from arrays
                 if (action.elementType === 'frame') frames = frames.filter(f => f.id !== action.id);
                 if (action.elementType === 'note') notes = notes.filter(n => n.dataset.id != action.id);
-                if (action.elementType === 'sprintList') sprintLists = sprintLists.filter(l => l.id !== action.id);
+                if (action.elementType === 'sprintList') {
+                    sprintLists = sprintLists.filter(l => l.id !== action.id);
+                    updateSprintListTitles();
+                }
                 if (action.elementType === 'flowNode') {
                      flowNodes = flowNodes.filter(n => n.dataset.id != action.id);
                      edges.forEach(e => {
@@ -502,7 +853,10 @@ window.initBoard = function() {
                 action.parent.appendChild(action.element);
                 if (action.elementType === 'frame') frames.push({ id: action.id, element: action.element }); 
                 if (action.elementType === 'note') notes.push(action.element);
-                if (action.elementType === 'sprintList') sprintLists.push(action.data);
+                if (action.elementType === 'sprintList') {
+                    sprintLists.push(action.data);
+                    updateSprintListTitles();
+                }
                 if (action.elementType === 'flowNode') {
                     flowNodes.push(action.element);
                     updateEdges();
@@ -628,7 +982,8 @@ window.initBoard = function() {
                 y: f.element.style.top,
                 w: f.element.style.width,
                 h: f.element.style.height,
-                title: f.element.querySelector('.frame-title-input').value
+                title: f.element.querySelector('.frame-title-input').value,
+                folderId: f.folderId
             })),
             notes: notes.map(n => ({
                 id: n.dataset.id,
@@ -638,7 +993,8 @@ window.initBoard = function() {
                 h: n.style.height,
                 content: n.querySelector('textarea').value,
                 sprint: n.dataset.sprint || null,
-                parentId: n.parentElement.classList.contains('canvas-frame') ? n.parentElement.dataset.id : 'workspace'
+                parentId: n.parentElement.classList.contains('canvas-frame') ? n.parentElement.dataset.id : 'workspace',
+                folderId: n.dataset.folderId
             })),
             sprintLists: currentSprintLists,
             flowNodes: flowNodes.map(n => ({
@@ -646,7 +1002,8 @@ window.initBoard = function() {
                 type: n.dataset.type,
                 x: n.style.left,
                 y: n.style.top,
-                text: n.querySelector('span').innerText
+                text: n.querySelector('span').innerText,
+                folderId: n.dataset.folderId
             })),
             edges: edges.map(e => ({
                 id: e.id,
@@ -654,7 +1011,8 @@ window.initBoard = function() {
                 sourceHandle: e.sourceHandle,
                 targetNodeId: e.targetNodeId,
                 targetHandle: e.targetHandle
-            }))
+            })),
+            folders: folders
         };
 
         localStorage.setItem(BOARD_STATE_KEY, JSON.stringify(state));
@@ -674,22 +1032,29 @@ window.initBoard = function() {
         flowNodes = [];
         sprintLists = [];
         edges = [];
+        folders = [];
         while (edgesSvg.childNodes.length > 2) { 
             edgesSvg.removeChild(edgesSvg.lastChild);
         }
 
+        // Restore Folders
+        if(state.folders) folders = state.folders;
+
         // Restore Frames
         state.frames.forEach(f => {
-            createFrame(
+            const fr = createFrame(
                 parseFloat(f.x), parseFloat(f.y), 
                 parseFloat(f.w), parseFloat(f.h), 
                 f.title, f.id
             );
+            fr.folderId = f.folderId;
         });
 
         // Restore Flow Nodes
         state.flowNodes.forEach(n => {
             createFlowNode(n.type, n.id, parseFloat(n.x), parseFloat(n.y), n.text);
+            const node = flowNodes.find(x => x.dataset.id == n.id);
+            if(node && n.folderId) node.dataset.folderId = n.folderId;
         });
 
         // Restore Notes
@@ -700,6 +1065,8 @@ window.initBoard = function() {
                 if (parentFrame) parent = parentFrame.element;
             }
             addStickyNote(parent, n.id, n.content, parseFloat(n.x), parseFloat(n.y), n.sprint);
+            const note = notes.find(x => x.dataset.id == n.id);
+            if(note && n.folderId) note.dataset.folderId = n.folderId;
         });
 
         // Restore Sprint Lists
@@ -776,32 +1143,30 @@ window.initBoard = function() {
     }
 
     /*******************************************************
-     * FLOW CHART SYSTEM - UPDATED TO HOMEPAGE PILL STYLE
+     * FLOW CHART SYSTEM
      *******************************************************/
     
     function getCenterPos() {
-        const scrollLeft = scrollContainer.scrollLeft;
-        const scrollTop = scrollContainer.scrollTop;
-        const containerWidth = scrollContainer.clientWidth;
-        const containerHeight = scrollContainer.clientHeight;
+        const containerW = scrollContainer.clientWidth;
+        const containerH = scrollContainer.clientHeight;
+        const screenCenterX = scrollContainer.scrollLeft + containerW / 2;
+        const screenCenterY = scrollContainer.scrollTop + containerH / 2;
         return {
-            x: scrollLeft + containerWidth / 2,
-            y: scrollTop + containerHeight / 2
+            x: screenCenterX / currentScale,
+            y: screenCenterY / currentScale
         };
     }
 
     function createFlowNode(type, id = null, x = null, y = null, textContent = null) {
-        if (!x || !y) {
+        if (x === null || y === null) {
             const center = getCenterPos();
-            x = center.x + (Math.random() * 100 - 50);
-            y = center.y + (Math.random() * 100 - 50);
+            x = center.x + (Math.random() * 40 - 20);
+            y = center.y + (Math.random() * 40 - 20);
         }
         
         const nodeId = id || Date.now();
         const displayText = textContent || (type === 'circle' ? 'Start' : (type === 'rect' ? 'Analysis' : 'Prototype'));
 
-        // Styles based on Homepage "Pill" Nodes
-        // Circle/Start -> Emerald, Rect/Analysis -> Blue, Diamond/Prototype -> Purple
         const styles = {
             circle: { dot: 'bg-emerald-400', shadow: 'shadow-[0_0_0_2px_rgba(52,211,153,0.2)]' },
             rect: { dot: 'bg-blue-400', shadow: 'shadow-[0_0_0_2px_rgba(96,165,250,0.2)]' },
@@ -809,7 +1174,6 @@ window.initBoard = function() {
         };
         const style = styles[type] || styles.circle;
 
-        // Node Container - Pill Shape
         const node = document.createElement('div');
         node.dataset.id = nodeId;
         node.dataset.type = type;
@@ -817,13 +1181,11 @@ window.initBoard = function() {
         node.style.left = `${x}px`;
         node.style.top = `${y}px`;
 
-        // Content
         node.innerHTML = `
             <div class="w-2 h-2 rounded-full ${style.dot} ${style.shadow} pointer-events-none"></div>
             <span class="text-sm font-semibold text-gray-700 pointer-events-none">${displayText}</span>
         `;
 
-        // Handles
         const handles = ['top', 'right', 'bottom', 'left'];
         handles.forEach(pos => {
             const h = document.createElement('div');
@@ -834,7 +1196,6 @@ window.initBoard = function() {
             setupHandleEvents(h, node);
         });
 
-        // Editable Text
         node.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             const textSpan = node.querySelector('span');
@@ -879,36 +1240,55 @@ window.initBoard = function() {
     /***********************
      * SPRINT TASK LIST
      ***********************/
+    function updateSprintListTitles() {
+        // Enforce sequential numbering 1..N for all lists currently on board
+        sprintLists.forEach((listData, index) => {
+            listData.title = `Sprint Task ${index + 1}`;
+            const el = document.querySelector(`.sprint-list[data-id="${listData.id}"]`);
+            if (el) {
+                const titleEl = el.querySelector('h4');
+                if(titleEl) {
+                    titleEl.innerHTML = `<div class="w-2 h-2 rounded-sm bg-indigo-500"></div> ${listData.title}`;
+                }
+            }
+        });
+        updateTracker();
+    }
+
     function addSprintList(x = null, y = null, id = null, existingData = null) {
-        if (!x || !y) {
+        if (x === null || y === null) {
             const center = getCenterPos();
             x = center.x - 128; 
             y = center.y - 100; 
         }
         
         const listId = id || Date.now();
-        const data = existingData || {
-            id: listId,
-            title: 'Sprint Tasks',
-            items: [
-                { text: 'User Research', completed: true },
-                { text: 'High-fi Mocks', completed: false },
-                { text: 'Interaction', completed: false }
-            ]
-        };
+        
+        let data;
+        if (existingData) {
+            data = existingData;
+        } else {
+            // Initial empty tasks with placeholders
+            data = {
+                id: listId,
+                title: `Sprint Task ${sprintLists.length + 1}`,
+                items: [
+                    { text: '', placeholder: 'Task 1', completed: false },
+                    { text: '', placeholder: 'Task 2', completed: false },
+                    { text: '', placeholder: 'Task 3', completed: false }
+                ]
+            };
+        }
 
-        // Container
         const container = document.createElement('div');
         container.className = 'absolute w-64 bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow select-none sprint-list z-10';
         container.style.left = `${x}px`;
         container.style.top = `${y}px`;
         container.dataset.id = listId;
 
-        // Render Content
         const renderContent = () => {
             const count = data.items.length;
             
-            // Header
             let html = `
                 <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center handle-drag">
                      <h4 class="text-xs font-bold text-gray-900 flex items-center gap-2 pointer-events-none">
@@ -924,21 +1304,21 @@ window.initBoard = function() {
             `;
 
             data.items.forEach((item, idx) => {
-                if (item.completed) {
-                    html += `
-                    <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer task-item" data-idx="${idx}">
-                        <div class="w-5 h-5 bg-indigo-500 rounded-[6px] flex items-center justify-center shrink-0 transition-transform">
-                            <i class="fa-solid fa-check text-white text-[10px]" style="stroke-width: 3px;"></i>
-                        </div> 
-                        <span class="text-sm text-gray-400 line-through decoration-gray-200 font-medium">${item.text}</span>
-                    </div>`;
-                } else {
-                    html += `
-                    <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer task-item" data-idx="${idx}">
-                        <div class="w-5 h-5 border-[1.5px] border-gray-300 rounded-[6px] group-hover:border-indigo-400 transition-colors bg-white shrink-0"></div> 
-                        <span class="text-sm text-gray-700 font-medium">${item.text}</span>
-                    </div>`;
-                }
+                const isChecked = item.completed ? 'bg-indigo-500' : 'bg-white border-[1.5px] border-gray-300';
+                const checkIcon = item.completed ? '<i class="fa-solid fa-check text-white text-[10px]" style="stroke-width: 3px;"></i>' : '';
+                const placeholder = item.placeholder || `Task ${idx + 1}`;
+                
+                html += `
+                <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer task-item" data-idx="${idx}">
+                    <div class="w-5 h-5 ${isChecked} rounded-[6px] flex items-center justify-center shrink-0 transition-transform check-trigger">
+                        ${checkIcon}
+                    </div> 
+                    <input type="text" 
+                           class="text-sm bg-transparent outline-none w-full ${item.completed ? 'text-gray-400 line-through decoration-gray-200' : 'text-gray-700'} font-medium placeholder-input"
+                           value="${item.text}"
+                           placeholder="${placeholder}"
+                           data-input-idx="${idx}">
+                </div>`;
             });
             
             html += `
@@ -949,31 +1329,42 @@ window.initBoard = function() {
             
             container.innerHTML = html;
 
-            // Bind Events
-            container.querySelectorAll('.task-item').forEach(el => {
-                el.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent drag start
-                el.addEventListener('click', () => {
-                    const idx = parseInt(el.dataset.idx);
+            // Checkbox Toggle Logic
+            container.querySelectorAll('.check-trigger').forEach(el => {
+                el.addEventListener('mousedown', (e) => e.stopPropagation()); 
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const parent = el.closest('.task-item');
+                    const idx = parseInt(parent.dataset.idx);
                     data.items[idx].completed = !data.items[idx].completed;
                     renderContent();
                 });
             });
 
-            const input = container.querySelector('.new-item-input');
-            input.addEventListener('mousedown', (e) => e.stopPropagation());
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && input.value.trim()) {
-                    data.items.push({ text: input.value.trim(), completed: false });
+            // Input Logic (Edit items)
+            container.querySelectorAll('input[data-input-idx]').forEach(input => {
+                input.addEventListener('mousedown', (e) => e.stopPropagation());
+                input.addEventListener('change', (e) => {
+                    const idx = parseInt(input.dataset.inputIdx);
+                    data.items[idx].text = input.value;
+                });
+            });
+
+            const newItemInput = container.querySelector('.new-item-input');
+            newItemInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            newItemInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && newItemInput.value.trim()) {
+                    data.items.push({ text: newItemInput.value.trim(), placeholder: `Task ${data.items.length + 1}`, completed: false });
                     renderContent();
                 }
             });
-
+            
             const delBtn = container.querySelector('.delete-btn');
             delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
             delBtn.addEventListener('click', () => {
                 container.remove();
                 sprintLists = sprintLists.filter(l => l.id !== listId);
-                updateTracker();
+                updateSprintListTitles(); // Re-index remaining lists
             });
         };
 
@@ -990,8 +1381,9 @@ window.initBoard = function() {
                 data: data,
                 parent: workspace
             });
+            // Update title to ensure sequential naming on creation
+            updateSprintListTitles();
         } else {
-            // Ensure we update the reference if reloading
             const idx = sprintLists.findIndex(l => l.id === listId);
             if(idx === -1) sprintLists.push(data);
             else sprintLists[idx] = data;
@@ -1014,8 +1406,8 @@ window.initBoard = function() {
             
             const rect = handle.getBoundingClientRect();
             const wsRect = workspace.getBoundingClientRect();
-            const startX = rect.left + rect.width/2 - wsRect.left;
-            const startY = rect.top + rect.height/2 - wsRect.top;
+            const startX = (rect.left + rect.width/2 - wsRect.left) / currentScale;
+            const startY = (rect.top + rect.height/2 - wsRect.top) / currentScale;
 
             startHandleInfo = {
                 nodeId: node.dataset.id,
@@ -1041,8 +1433,8 @@ window.initBoard = function() {
         if (!activeConnectionLine || !startHandleInfo) return;
         
         const wsRect = workspace.getBoundingClientRect();
-        const mouseX = e.clientX - wsRect.left;
-        const mouseY = e.clientY - wsRect.top;
+        const mouseX = (e.clientX - wsRect.left) / currentScale;
+        const mouseY = (e.clientY - wsRect.top) / currentScale;
 
         const d = getBezierPath(startHandleInfo.x, startHandleInfo.y, mouseX, mouseY, startHandleInfo.handlePos);
         activeConnectionLine.setAttribute('d', d);
@@ -1126,10 +1518,10 @@ window.initBoard = function() {
             const sRect = sHandle.getBoundingClientRect();
             const tRect = tHandle.getBoundingClientRect();
 
-            const startX = sRect.left + sRect.width/2 - wsRect.left;
-            const startY = sRect.top + sRect.height/2 - wsRect.top;
-            const endX = tRect.left + tRect.width/2 - wsRect.left;
-            const endY = tRect.top + tRect.height/2 - wsRect.top;
+            const startX = (sRect.left + sRect.width/2 - wsRect.left) / currentScale;
+            const startY = (sRect.top + sRect.height/2 - wsRect.top) / currentScale;
+            const endX = (tRect.left + tRect.width/2 - wsRect.left) / currentScale;
+            const endY = (tRect.top + tRect.height/2 - wsRect.top) / currentScale;
 
             const d = getBezierPath(startX, startY, endX, endY, edge.sourceHandle, edge.targetHandle);
             edge.pathEl.setAttribute('d', d);
@@ -1212,6 +1604,7 @@ window.initBoard = function() {
                     element.removeAttribute('data-y');
 
                     if (type === 'note') reparentNote(element);
+                    // Update edges one last time to snap to final position
                     if (type === 'flowNode') updateEdges();
 
                     if (Math.abs(finalX - startX) > 1 || Math.abs(finalY - startY) > 1) {
@@ -1420,7 +1813,7 @@ window.initBoard = function() {
             saveDrawingToLocalStorage(frameId, canvas);
         });
 
-        const frameData = { id: frameId, x, y, width, height, title, element: frame };
+        const frameData = { id: frameId, x, y, width, height, title, element: frame, folderId: null };
         workspace.appendChild(frame);
         frames.push(frameData);
         
@@ -1469,7 +1862,6 @@ window.initBoard = function() {
 
         const noteId = id || Date.now();
 
-        // Removed hover:shadow-md, added hover:shadow-none as requested
         const note = document.createElement('div');
         note.className = 'absolute w-64 bg-[#FFFCF0] border border-yellow-200/60 rounded-2xl p-5 flex flex-col gap-3 group shadow-sm hover:shadow-none transition-shadow select-none';
         note.style.left = `${x}px`;
@@ -1531,6 +1923,21 @@ window.initBoard = function() {
         dropdown.appendChild(createDropdownItem('Assign to Sprint 3', () => updateSprintTag('Sprint 3')));
         dropdown.appendChild(createDropdownItem('Clear Sprint', () => updateSprintTag(null)));
         
+        const actionDivider = document.createElement('div');
+        actionDivider.className = 'h-[1px] bg-gray-100 my-1';
+        dropdown.appendChild(actionDivider);
+
+        // Duplicate Action
+        dropdown.appendChild(createDropdownItem('Duplicate', () => {
+             const rect = note.getBoundingClientRect();
+             // Calculate workspace coords
+             const wsRect = workspace.getBoundingClientRect();
+             const dx = (rect.left - wsRect.left) / currentScale + 20;
+             const dy = (rect.top - wsRect.top) / currentScale + 20;
+             
+             addStickyNote(parent, null, content, dx, dy, sprint);
+        }));
+
         const deleteDivider = document.createElement('div');
         deleteDivider.className = 'h-[1px] bg-gray-100 my-1';
         dropdown.appendChild(deleteDivider);
@@ -1622,6 +2029,145 @@ window.initBoard = function() {
     }
 
     /***********************
+     * CONTEXT MENU LOGIC
+     ***********************/
+    function initContextMenu() {
+        const menu = document.getElementById('context-menu');
+        let targetElementData = null;
+
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            
+            // Determine target
+            let target = e.target;
+            targetElementData = null;
+
+            // Find if clicked on an element we track
+            const noteEl = target.closest('[data-id]'); // Frames, notes, nodes, lists have data-id on container
+            
+            // Determine Type
+            if (noteEl) {
+                const id = noteEl.dataset.id;
+                if (noteEl.classList.contains('canvas-frame')) targetElementData = { type: 'frame', id, el: noteEl };
+                else if (noteEl.classList.contains('sprint-list')) targetElementData = { type: 'sprintList', id, el: noteEl };
+                else if (noteEl.dataset.type) targetElementData = { type: 'flowNode', id, el: noteEl }; // nodes
+                else if (noteEl.querySelector('.note-textarea')) targetElementData = { type: 'note', id, el: noteEl };
+            }
+
+            // Build Menu Items
+            menu.innerHTML = '';
+            
+            const addItem = (text, icon, onClick) => {
+                const item = document.createElement('div');
+                item.className = 'context-menu-item px-4 py-2 text-sm cursor-pointer hover:bg-[#222426] flex items-center gap-3 transition-colors';
+                item.innerHTML = `<i class="${icon} text-gray-400 w-4"></i> ${text}`;
+                item.onclick = (ev) => {
+                    ev.stopPropagation();
+                    onClick();
+                    menu.classList.add('hidden');
+                };
+                menu.appendChild(item);
+            };
+
+            if (targetElementData) {
+                // Element Actions
+                addItem('Duplicate', 'fa-solid fa-copy', () => duplicateElement(targetElementData));
+                addItem('Bring to Front', 'fa-solid fa-layer-group', () => {
+                    workspace.appendChild(targetElementData.el);
+                });
+                addItem('Send to Back', 'fa-solid fa-layer-group', () => {
+                    // Insert after SVG layer
+                    workspace.insertBefore(targetElementData.el, edgesSvg.nextSibling);
+                });
+                
+                const divider = document.createElement('div');
+                divider.className = 'h-[1px] bg-[#222426] my-1';
+                menu.appendChild(divider);
+                
+                addItem('Delete', 'fa-solid fa-trash text-red-400', () => deleteElement(targetElementData));
+            } else {
+                // Workspace Actions
+                addItem('New Sticky Note', 'fa-solid fa-sticky-note', () => {
+                    const center = getMouseWorkspacePos(e);
+                    addStickyNote(workspace, null, '', center.x, center.y);
+                });
+                 addItem('New Task List', 'fa-solid fa-list-check', () => {
+                    const center = getMouseWorkspacePos(e);
+                    addSprintList(center.x, center.y);
+                });
+                addItem('Reset View', 'fa-solid fa-compress', () => {
+                    scrollContainer.scrollTo({ left: 14000/2 - scrollContainer.clientWidth/2, top: 14000/2 - scrollContainer.clientHeight/2, behavior: 'smooth' });
+                    currentScale = 1;
+                    workspace.style.transform = `scale(1)`;
+                });
+            }
+
+            // Position Menu
+            const x = e.clientX;
+            const y = e.clientY;
+            
+            // Adjust bounds if offscreen
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            
+            menu.classList.remove('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+             if (!menu.contains(e.target)) menu.classList.add('hidden');
+        });
+    }
+
+    function getMouseWorkspacePos(e) {
+        const wsRect = workspace.getBoundingClientRect();
+        return {
+            x: (e.clientX - wsRect.left) / currentScale,
+            y: (e.clientY - wsRect.top) / currentScale
+        };
+    }
+
+    function deleteElement(data) {
+        data.el.remove();
+        if (data.type === 'frame') frames = frames.filter(f => f.id != data.id);
+        else if (data.type === 'note') notes = notes.filter(n => n.dataset.id != data.id);
+        else if (data.type === 'sprintList') {
+            sprintLists = sprintLists.filter(l => l.id != data.id);
+            updateSprintListTitles();
+        }
+        else if (data.type === 'flowNode') {
+            flowNodes = flowNodes.filter(n => n.dataset.id != data.id);
+            updateEdges(); // Clean up edges
+        }
+        updateTracker();
+    }
+
+    function duplicateElement(data) {
+        const offset = 20;
+        const x = parseFloat(data.el.style.left) + offset;
+        const y = parseFloat(data.el.style.top) + offset;
+
+        if (data.type === 'note') {
+            const note = notes.find(n => n.dataset.id == data.id);
+            const content = note.querySelector('textarea').value;
+            const sprint = note.dataset.sprint;
+            addStickyNote(workspace, null, content, x, y, sprint);
+        } else if (data.type === 'sprintList') {
+            const list = sprintLists.find(l => l.id == data.id);
+            // Deep copy items
+            const newData = JSON.parse(JSON.stringify(list));
+            newData.id = null; // Reset ID for generation
+            newData.title = ''; // Let addSprintList generate title
+            addSprintList(x, y, null, newData);
+        } else if (data.type === 'flowNode') {
+            const node = flowNodes.find(n => n.dataset.id == data.id);
+            const text = node.querySelector('span').innerText || node.querySelector('input')?.value;
+            createFlowNode(node.dataset.type, null, x, y, text);
+        } else if (data.type === 'frame') {
+             window.showCustomAlert("Duplicate Frame", "Duplicating entire frames including drawings is complex and coming soon!", "info");
+        }
+    }
+
+    /***********************
      * INITIALIZATION
      ***********************/
     function centerDefaultFrame() {
@@ -1656,8 +2202,8 @@ window.initBoard = function() {
             // For now, center of 14000x14000
             const containerWidth = scrollContainer.clientWidth;
             const containerHeight = scrollContainer.clientHeight;
-            scrollContainer.scrollLeft = 14000/2 - containerWidth/2;
-            scrollContainer.scrollTop = 14000/2 - containerHeight/2;
+            scrollContainer.scrollLeft = 14000/2 - containerWidth / 2;
+            scrollContainer.scrollTop = 14000/2 - containerHeight / 2;
         }
 
         customCursor.style.display = 'block';
@@ -1665,12 +2211,14 @@ window.initBoard = function() {
         if (boardContainer) boardContainer.classList.add('no-cursor');
         
         // Settings init
-        initSettings();
+        initSettingsAndPopups();
+        initContextMenu();
 
         updateUndoRedoUI();
         // Init tracker UI
         renderTrackerSidebar();
         updateTracker();
+        renderHistoryTracker(); // Initial render
     }
 
     /***********************

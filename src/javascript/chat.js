@@ -32,6 +32,8 @@ window.initChat = function() {
         const saved = localStorage.getItem("chatMessages");
         try {
             messages = saved ? JSON.parse(saved) : defaultMessages;
+            // Ensure loaded messages are NOT marked as animated (they are old)
+            messages.forEach(m => m.animated = false);
         } catch (e) {
             console.error("Error parsing messages from localStorage:", e);
             messages = defaultMessages;
@@ -56,8 +58,11 @@ window.initChat = function() {
                 : "bg-[#2b3037] text-gray-200 self-start";
             const senderClasses = msg.fromSelf ? "self-end" : "self-start";
 
+            // Only apply animation if 'animated' flag is true
+            const animClass = msg.animated ? "animate-bounce-in" : "";
+
             const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${alignClass} gap-1 animate-bounce-in w-full`;
+            messageDiv.className = `flex ${alignClass} gap-1 ${animClass} w-full`;
             
             // Message Bubble
             const bubble = document.createElement('div');
@@ -66,7 +71,6 @@ window.initChat = function() {
             bubble.style.overflowWrap = 'break-word';
             bubble.textContent = msg.text;
             
-
             // Sender Initials
             const senderInitials = document.createElement('div');
             senderInitials.className = `rounded-full flex items-center justify-center text-black text-xs px-2 py-0.5 font-semibold bg-gray-200 ${senderClasses}`;
@@ -75,7 +79,15 @@ window.initChat = function() {
             messageDiv.appendChild(bubble);
             messageDiv.appendChild(senderInitials);
             messagesContainer.appendChild(messageDiv);
+            
+            // After rendering, clear animation flag for next time
+            if (msg.animated) {
+                msg.animated = false;
+            }
         });
+        
+        // Save the state where animated is false so refreshes don't re-animate
+        saveMessages();
 
         // Scroll to the bottom of the chat
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -143,12 +155,12 @@ window.initChat = function() {
         const text = messageInput.value.trim();
         if (!text) return;
 
-        const newMessageObj = { text: text, sender: "L", fromSelf: true };
+        // Mark new message as animated
+        const newMessageObj = { text: text, sender: "L", fromSelf: true, animated: true };
         messages.push(newMessageObj);
         
         messageInput.value = ""; // Clear input
-        saveMessages();
-        renderMessages();
+        renderMessages(); // This will render with animation, then clear flags and save
     };
 
     const toggleAccount = (show) => {
