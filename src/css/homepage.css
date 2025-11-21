@@ -42,7 +42,6 @@ body {
   justify-content: center;
   align-items: center;
   text-align: center;
-  overflow: hidden;
 }
 
 /* ----------- Hero Content ----------- */
@@ -171,6 +170,7 @@ body {
   animation: gatherAndBurst 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
+
 .icon {
   font-size: 1.75rem;
 }
@@ -190,6 +190,9 @@ body {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.fa-location-arrowr{
+  rotate: -90deg;
 }
 
 /* Floating burst positions */
@@ -250,3 +253,54 @@ body {
   animation: floatIdle 4s ease-in-out infinite;
   animation-delay: 2.6s;
 }
+
+
+/* ----------- New Feature Styles ----------- */
+
+/* Feature Cards */
+.feature-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+
+/* Scroll Reveal Animation Class */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Additional Animations */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0) rotate(var(--tw-rotate)); }
+  50% { transform: translateY(-15px) rotate(var(--tw-rotate)); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s infinite ease-in-out;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+/* Utility for delay */
+.delay-100 { transition-delay: 100ms; }
+.delay-200 { transition-delay: 200ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-700 { animation-delay: 700ms; }

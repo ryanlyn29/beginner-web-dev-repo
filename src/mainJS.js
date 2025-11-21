@@ -1,5 +1,3 @@
-// mainJS.js - COMPLETE FIXED VERSION for dynamic loading and SPA functions
-
 // Load partial HTML into a container
 async function loadHTML(path, containerId) {
     const container = document.getElementById(containerId);
@@ -99,109 +97,87 @@ async function navigate(path) {
     // --- LOAD ROUTE-SPECIFIC JS ---
     // ----------------------------------------------------------------------
 
-    // --- BOARD ROUTE (/board) ---
-    if (path === "/board") {
+    // --- HOMEPAGE ROUTE (/ or /home) ---
+    if (path === "/" || path === "/home") {
         try {
-            // Check if scripts are already loaded (using sentinel value like window.initBoard)
-            if (!window.initBoard || !window.initPomodoro) { // Check for Pomodoro init function too
-                
-                // 1. Board Script
-                const script = document.createElement("script");
-                script.src = "javascript/board.js";
-                document.body.appendChild(script);
-
-                // 2. Chat Script
-                const chatScript = document.createElement("script");
-                chatScript.src = "javascript/chat.js";
-                document.body.appendChild(chatScript);
-
-                // 3. Pomodoro Script
-                const pomodoroScript = document.createElement("script");
-                pomodoroScript.src = "javascript/pomodoro.js";
-                document.body.appendChild(pomodoroScript);
-                // ------------------------------------
-
-                script.onload = () => {
-                    setTimeout(() => {
-                        if (window.initBoard) {
-                            console.log("Initializing board...");
-                            window.initBoard();
-                        }
-                    }, 0);
-                };
-
-                chatScript.onload = () => {
-                    setTimeout(() => {
-                        if (window.initChat) {
-                            console.log("Initializing chat...");
-                            window.initChat();
-                        }
-                    }, 0);
-                };
-
-                // ⭐ CALL INITPOMODORO AFTER SCRIPT LOADED ⭐
-                pomodoroScript.onload = () => {
-                    setTimeout(() => {
-                        if (window.initPomodoro) {
-                            console.log("Initializing pomodoro...");
-                            window.initPomodoro(); 
-                        }
-                    }, 0);
-                };
-                // ---------------------------------------------
-
-            } else {
-                // If scripts are already defined, call their init functions again
-                setTimeout(() => {
-                    console.log("Re-initializing board (already loaded)...");
-                    window.initBoard();
-
-                    if (window.initChat) {
-                        console.log("Re-initializing chat (already loaded)...");
-                        window.initChat();
+            const loadScript = (src) => {
+                return new Promise((resolve, reject) => {
+                    let script = document.querySelector(`script[src="${src}"]`);
+                    if (!script) {
+                        script = document.createElement("script");
+                        script.src = src;
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.body.appendChild(script);
+                    } else {
+                        resolve();
                     }
-
-                    // ⭐ RE-CALL INITPOMODORO FOR SUBSEQUENT NAVIGATIONS ⭐
-                    if (window.initPomodoro) {
-                        console.log("Re-initializing pomodoro...");
-                        window.initPomodoro(); 
-                    }
-                    // --------------------------------------------------
-
-                }, 0);
-            }
-            console.log("✅ Board, Chat, and Pomodoro scripts handled");
+                });
+            };
+            
+            await loadScript("javascript/homepage.js");
+            
+            // Initialize functionality
+            if (window.initHomepage) window.initHomepage();
+            
         } catch (err) {
-            console.error("Failed to load board/chat/pomodoro scripts:", err);
+            console.error("Failed to load homepage script:", err);
+        }
+    }
+
+    // --- BOARD ROUTE (/board) ---
+    else if (path === "/board") {
+        try {
+            // Function to load a script safely
+            const loadScript = (src) => {
+                return new Promise((resolve, reject) => {
+                    let script = document.querySelector(`script[src="${src}"]`);
+                    if (!script) {
+                        script = document.createElement("script");
+                        script.src = src;
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.body.appendChild(script);
+                    } else {
+                        resolve(); // Script already loaded
+                    }
+                });
+            };
+
+            // Load dependencies sequentially or in parallel
+            await loadScript("javascript/games.js");
+            await loadScript("javascript/board.js");
+            await loadScript("javascript/chat.js");
+            await loadScript("javascript/pomodoro.js");
+
+            // Initialize functionality
+            setTimeout(() => {
+                if (window.initGames) window.initGames();
+                if (window.initBoard) window.initBoard();
+                if (window.initChat) window.initChat();
+                if (window.initPomodoro) window.initPomodoro();
+            }, 50);
+
+        } catch (err) {
+            console.error("Failed to load board scripts:", err);
         }
     } 
     
     // --- LOGIN ROUTE (/login) ---
     else if (path === "/login") {
         try {
-            // Check if login script is already loaded
+             const loadLogin = () => {
+                const script = document.createElement("script");
+                script.src = "javascript/login.js";
+                script.onload = () => { window.loginInitialized = true; };
+                document.body.appendChild(script);
+             };
+
             if (!window.loginInitialized) {
-                // Remove old script if it exists to allow re-initialization
-                const oldScript = document.querySelector('script[src*="login.js"]');
-                if (oldScript) {
-                    oldScript.remove();
-                }
-
-                const loginScript = document.createElement("script");
-                loginScript.src = "javascript/login.js";
-                document.body.appendChild(loginScript);
-
-                loginScript.onload = () => {
-                    console.log("✅ Login script loaded");
-                    window.loginInitialized = true;
-                };
-
-                loginScript.onerror = () => {
-                    console.error("Failed to load login.js");
-                };
+                const old = document.querySelector('script[src*="login.js"]');
+                if(old) old.remove();
+                loadLogin();
             } else {
-                // Since login.js uses DOMContentLoaded, re-dispatch it
-                console.log("Re-initializing login page...");
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
             }
@@ -213,29 +189,18 @@ async function navigate(path) {
     // --- SIGNIN ROUTE (/signin) --- 
     else if (path === "/signin") {
         try {
-            // Check if signin script is already loaded
+             const loadSignin = () => {
+                const script = document.createElement("script");
+                script.src = "javascript/signin.js";
+                script.onload = () => { window.signinInitialized = true; };
+                document.body.appendChild(script);
+             };
+
             if (!window.signinInitialized) {
-                // Remove old script if it exists
-                const oldScript = document.querySelector('script[src*="signin.js"]');
-                if (oldScript) {
-                    oldScript.remove();
-                }
-
-                const signinScript = document.createElement("script");
-                signinScript.src = "javascript/signin.js";
-                document.body.appendChild(signinScript);
-
-                signinScript.onload = () => {
-                    console.log("✅ Signin script loaded");
-                    window.signinInitialized = true;
-                };
-
-                signinScript.onerror = () => {
-                    console.error("Failed to load signin.js");
-                };
+                const old = document.querySelector('script[src*="signin.js"]');
+                if(old) old.remove();
+                loadSignin();
             } else {
-                // Re-dispatch DOMContentLoaded if already loaded
-                console.log("Re-initializing signin page...");
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
             }
@@ -247,29 +212,13 @@ async function navigate(path) {
     // --- ROOM ROUTE (/room) ---
     else if (path === "/room") { 
         try {
-            // Check if the room script is already loaded (using a sentinel value)
             if (!window.roomInitialized) {
-                // Remove old script if it exists to ensure re-initialization works
-                const oldScript = document.querySelector('script[src*="room.js"]');
-                if (oldScript) {
-                    oldScript.remove();
-                }
-
-                const roomScript = document.createElement("script");
-                roomScript.src = "javascript/room.js"; 
-                document.body.appendChild(roomScript);
-
-                roomScript.onload = () => {
-                    console.log("✅ Room script loaded");
-                    // Functions like showCreateRoom are attached globally
-                    window.roomInitialized = true; 
-                };
-
-                roomScript.onerror = () => {
-                    console.error("Failed to load room.js");
-                };
-            } else {
-                console.log("Room script already loaded.");
+                const old = document.querySelector('script[src*="room.js"]');
+                if(old) old.remove();
+                const script = document.createElement("script");
+                script.src = "javascript/room.js"; 
+                script.onload = () => { window.roomInitialized = true; };
+                document.body.appendChild(script);
             }
         } catch (err) {
             console.error("Failed to load room script:", err);
@@ -290,23 +239,14 @@ async function initApp() {
     document.body.appendChild(navbarScript);
     await new Promise((resolve) => {
         navbarScript.onload = resolve;
-        navbarScript.onerror = () => {
-            console.error("Failed to load navbar.js");
-            resolve();
-        };
+        navbarScript.onerror = resolve;
     });
 
-    if (window.initNavbar) {
-        window.initNavbar();
-    } else {
-        console.warn("window.initNavbar not found");
-    }
+    if (window.initNavbar) window.initNavbar();
 
     // --- Initial route (based on current URL) ---
     const initialPath = window.location.pathname;
-    console.log("Initial path:", initialPath);
-
-    // If we're at mainapp.html or index.html, go to home
+    
     if (initialPath.endsWith('mainapp.html') || initialPath.endsWith('index.html')) {
         window.history.replaceState({}, "", buildPath('/'));
         await navigate('/');
@@ -318,26 +258,16 @@ async function initApp() {
     document.body.addEventListener("click", (e) => {
         const link = e.target.closest("a[href]");
         if (!link) return;
-
         const href = link.getAttribute("href");
-
-        // Skip external links and hash links
         if (!href || href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) return;
 
-        // Create URL to check if it's internal
         try {
             const url = new URL(href, window.location.origin);
             const path = normalizePath(url.pathname);
-
-            console.log("Link clicked:", href, "-> normalized:", path);
-
-            // Only handle internal routes that are defined
             if (routes[path]) {
                 e.preventDefault();
                 window.history.pushState({}, "", buildPath(path));
                 navigate(path);
-            } else {
-                console.log("Route not defined:", path);
             }
         } catch (err) {
             console.error("Error processing link:", href, err);
@@ -346,7 +276,6 @@ async function initApp() {
 
     // --- Handle browser navigation (back/forward) ---
     window.addEventListener("popstate", () => {
-        console.log("Popstate event, navigating to:", window.location.pathname);
         navigate(window.location.pathname);
     });
 
@@ -354,7 +283,6 @@ async function initApp() {
 }
 
 // --- Boot up the app ---
-// Wait for DOM to be ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {

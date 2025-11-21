@@ -18,7 +18,7 @@ function hideAll() {
 window.showCreateRoom = function () {
     hideAll();
     if (createRoomForm) createRoomForm.style.display = 'flex';
-    if (titleText) titleText.textContent = 'Create Your New Room';
+    if (titleText) titleText.textContent = 'Create Your Room';
     if (descriptionText) descriptionText.textContent = 'Enter a name and an optional custom code to start a new collaborative session.';
 };
 

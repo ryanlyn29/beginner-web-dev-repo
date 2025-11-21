@@ -50,16 +50,15 @@
       z-index: 1000;
     }
     
-    #page-content {
-      display: flex;
-      flex: 1;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      position: relative;
-      margin: 0;
-      padding: 0;
-    }
+   #page-content {
+  display: block;     /* CHANGED: 'block' stacks items vertically. 'flex' was putting them side-by-side. */
+  position: relative;
+  width: 100%;        
+  height: 100%;       /* Fills the space between navbar and footer */
+  overflow-y: auto;   /* Enables vertical scrolling */
+  overflow-x: hidden; /* Prevents horizontal scrolling */
+  /* Pushes content down so it's not hidden behind the fixed Navbar */
+}
 
 
 
