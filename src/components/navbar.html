@@ -1,3 +1,32 @@
+
+<style>
+  /* Navbar Base Transition & Positioning */
+  .navbar {
+    transition: all 0.3s ease-in-out;
+    position: fixed; /* Ensure it stays at the top */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: transparent;
+  }
+
+  /* Scrolled State - Glassmorphism */
+  .navbar.scrolled {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  }
+
+  /* Optional: Dark mode support adjustment */
+  body.dark-mode .navbar.scrolled {
+    background: rgba(30, 30, 30, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+</style>
+
 <nav class="navbar" id="mainNavbar">
   <div class="nav-content">
     <!-- Desktop Brand -->

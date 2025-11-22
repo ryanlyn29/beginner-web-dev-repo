@@ -97,29 +97,27 @@ async function navigate(path) {
     // --- LOAD ROUTE-SPECIFIC JS ---
     // ----------------------------------------------------------------------
 
+    // Function to load a script safely
+    const loadScript = (src) => {
+        return new Promise((resolve, reject) => {
+            let script = document.querySelector(`script[src="${src}"]`);
+            if (!script) {
+                script = document.createElement("script");
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.body.appendChild(script);
+            } else {
+                resolve(); // Script already loaded
+            }
+        });
+    };
+
     // --- HOMEPAGE ROUTE (/ or /home) ---
     if (path === "/" || path === "/home") {
         try {
-            const loadScript = (src) => {
-                return new Promise((resolve, reject) => {
-                    let script = document.querySelector(`script[src="${src}"]`);
-                    if (!script) {
-                        script = document.createElement("script");
-                        script.src = src;
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.body.appendChild(script);
-                    } else {
-                        resolve();
-                    }
-                });
-            };
-            
             await loadScript("javascript/homepage.js");
-            
-            // Initialize functionality
             if (window.initHomepage) window.initHomepage();
-            
         } catch (err) {
             console.error("Failed to load homepage script:", err);
         }
@@ -128,22 +126,6 @@ async function navigate(path) {
     // --- BOARD ROUTE (/board) ---
     else if (path === "/board") {
         try {
-            // Function to load a script safely
-            const loadScript = (src) => {
-                return new Promise((resolve, reject) => {
-                    let script = document.querySelector(`script[src="${src}"]`);
-                    if (!script) {
-                        script = document.createElement("script");
-                        script.src = src;
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.body.appendChild(script);
-                    } else {
-                        resolve(); // Script already loaded
-                    }
-                });
-            };
-
             // Load dependencies sequentially or in parallel
             await loadScript("javascript/games.js");
             await loadScript("javascript/board.js");
@@ -166,21 +148,15 @@ async function navigate(path) {
     // --- LOGIN ROUTE (/login) ---
     else if (path === "/login") {
         try {
-             const loadLogin = () => {
-                const script = document.createElement("script");
-                script.src = "javascript/login.js";
-                script.onload = () => { window.loginInitialized = true; };
-                document.body.appendChild(script);
-             };
-
-            if (!window.loginInitialized) {
+             if (!window.loginInitialized) {
                 const old = document.querySelector('script[src*="login.js"]');
                 if(old) old.remove();
-                loadLogin();
-            } else {
+                await loadScript("javascript/login.js");
+                window.loginInitialized = true;
+             } else {
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
-            }
+             }
         } catch (err) {
             console.error("Failed to load login script:", err);
         }
@@ -189,17 +165,11 @@ async function navigate(path) {
     // --- SIGNIN ROUTE (/signin) --- 
     else if (path === "/signin") {
         try {
-             const loadSignin = () => {
-                const script = document.createElement("script");
-                script.src = "javascript/signin.js";
-                script.onload = () => { window.signinInitialized = true; };
-                document.body.appendChild(script);
-             };
-
             if (!window.signinInitialized) {
                 const old = document.querySelector('script[src*="signin.js"]');
                 if(old) old.remove();
-                loadSignin();
+                await loadScript("javascript/signin.js");
+                window.signinInitialized = true;
             } else {
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
@@ -215,10 +185,8 @@ async function navigate(path) {
             if (!window.roomInitialized) {
                 const old = document.querySelector('script[src*="room.js"]');
                 if(old) old.remove();
-                const script = document.createElement("script");
-                script.src = "javascript/room.js"; 
-                script.onload = () => { window.roomInitialized = true; };
-                document.body.appendChild(script);
+                await loadScript("javascript/room.js"); 
+                window.roomInitialized = true;
             }
         } catch (err) {
             console.error("Failed to load room script:", err);
@@ -229,6 +197,12 @@ async function navigate(path) {
 // Initialize the SPA
 async function initApp() {
     console.log("Initializing app...");
+
+    // --- Inject Socket.IO Client dynamically ---
+    // This ensures the socket.io client library is available for all pages (board, chat, room)
+    const socketScript = document.createElement('script');
+    socketScript.src = '/socket.io/socket.io.js'; // Served automatically by socket.io server
+    document.head.appendChild(socketScript);
 
     // --- Load the Navbar ---
     await loadHTML("components/navbar.html", "navbar-container");

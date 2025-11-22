@@ -1,10 +1,43 @@
 /************************************************************
- * INFINITE WHITEBOARD IMPLEMENTATION
+ * INFINITE WHITEBOARD IMPLEMENTATION WITH SOCKET.IO
  ************************************************************/
 
 window.initBoard = function() {
     // Wrap everything in IIFE to avoid global scope pollution
     
+    // --- SOCKET.IO SETUP ---
+    let socket;
+    let boardId = 'default-room';
+    let isRemoteUpdate = false;
+
+    // Initialize socket if available
+    if (typeof io !== 'undefined') {
+        try {
+            socket = io();
+            console.log('✅ Socket.IO initialized');
+            
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('room')) boardId = params.get('room');
+            
+            socket.emit('join', boardId);
+            
+            socket.on('board:update', (data) => {
+                // Flag to prevent infinite loops (remote update -> emit -> remote update ...)
+                isRemoteUpdate = true;
+                handleRemoteUpdate(data);
+                isRemoteUpdate = false;
+            });
+        } catch (e) {
+            console.error('Socket connection failed:', e);
+        }
+    }
+
+    const emitUpdate = (type, data) => {
+        if (socket && !isRemoteUpdate) {
+            socket.emit('board:update', { boardId, type, ...data });
+        }
+    };
+
     const DRAWING_STORAGE_KEY = 'whiteboardDrawings';
     const BOARD_STATE_KEY = 'whiteboardState';
 
@@ -181,6 +214,59 @@ window.initBoard = function() {
     let history = [];
     let historyStep = -1;
     const MAX_HISTORY = 50;
+
+    /***********************
+     * REMOTE UPDATE LOGIC
+     ***********************/
+    function handleRemoteUpdate(data) {
+        try {
+            if (data.type === 'MOVE') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el) {
+                    el.style.left = data.x + 'px';
+                    el.style.top = data.y + 'px';
+                    if (el.dataset.type) updateEdges();
+                }
+            } else if (data.type === 'DRAW') {
+                const frame = frames.find(f => f.id == data.frameId);
+                if (frame) {
+                    const canvas = frame.element.querySelector('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        saveDrawingToLocalStorage(data.frameId, canvas);
+                    };
+                    img.src = data.image;
+                }
+            } else if (data.type === 'ADD') {
+                if (data.elementType === 'note') {
+                    if(!document.querySelector(`[data-id="${data.data.id}"]`))
+                        addStickyNote(workspace, data.data.id, data.data.content, data.data.x, data.data.y, data.data.sprint);
+                } else if (data.elementType === 'frame') {
+                    if(!frames.find(f => f.id == data.data.id))
+                        createFrame(data.data.x, data.data.y, data.data.w, data.data.h, data.data.title, data.data.id);
+                } else if (data.elementType === 'flowNode') {
+                    if(!flowNodes.find(n => n.dataset.id == data.data.id))
+                        createFlowNode(data.data.type, data.data.id, data.data.x, data.data.y, data.data.text);
+                } else if (data.elementType === 'sprintList') {
+                    if(!sprintLists.find(l => l.id == data.data.id))
+                        addSprintList(data.data.x, data.data.y, data.data.id, data.data);
+                }
+            } else if (data.type === 'DELETE') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el) {
+                    deleteElement({ id: data.id, type: data.elementType, el: el });
+                }
+            } else if (data.type === 'ADD_EDGE') {
+                 if(!edges.find(e => e.id == data.edge.id))
+                    createEdge(data.edge.sourceNodeId, data.edge.sourceHandle, data.edge.targetNodeId, data.edge.targetHandle, data.edge.id);
+            }
+        } catch (err) {
+            console.error("Remote update error", err);
+        }
+    }
 
     /***********************
      * ZOOM FUNCTIONALITY
@@ -626,6 +712,9 @@ window.initBoard = function() {
      * UNDO / REDO SYSTEM
      ***********************/
     function pushHistory(action) {
+        // Don't push history if this is a remote update, as undo stack is local user action
+        if (isRemoteUpdate) return;
+
         // Remove any history ahead of current step (if we redid then did new action)
         if (historyStep < history.length - 1) {
             history = history.slice(0, historyStep + 1);
@@ -1231,6 +1320,12 @@ window.initBoard = function() {
                 element: node,
                 parent: workspace
             });
+            
+            // Emit new node creation
+            emitUpdate('ADD', { 
+                elementType: 'flowNode', 
+                data: { id: nodeId, type, x, y, text: displayText } 
+            });
         }
 
         setupDraggable(node, 'flowNode');
@@ -1365,6 +1460,7 @@ window.initBoard = function() {
                 container.remove();
                 sprintLists = sprintLists.filter(l => l.id !== listId);
                 updateSprintListTitles(); // Re-index remaining lists
+                emitUpdate('DELETE', { id: listId, elementType: 'sprintList' });
             });
         };
 
@@ -1383,6 +1479,9 @@ window.initBoard = function() {
             });
             // Update title to ensure sequential naming on creation
             updateSprintListTitles();
+            
+            // Emit new list creation
+            emitUpdate('ADD', { elementType: 'sprintList', data: data });
         } else {
             const idx = sprintLists.findIndex(l => l.id === listId);
             if(idx === -1) sprintLists.push(data);
@@ -1471,6 +1570,7 @@ window.initBoard = function() {
             if (e.shiftKey || activeTool === 'eraser') { 
                 path.remove();
                 edges = edges.filter(ed => ed.id !== edgeId);
+                emitUpdate('DELETE', { id: edgeId, elementType: 'edge' });
             }
         });
         path.addEventListener('mouseover', () => path.setAttribute('marker-end', 'url(#arrowhead-hover)'));
@@ -1494,6 +1594,10 @@ window.initBoard = function() {
             pushHistory({
                 type: 'ADD_EDGE',
                 edge: edgeObj
+            });
+            
+            emitUpdate('ADD_EDGE', { 
+                edge: { id: edgeId, sourceNodeId: sourceId, sourceHandle, targetNodeId: targetId, targetHandle } 
             });
         }
     }
@@ -1617,6 +1721,8 @@ window.initBoard = function() {
                             newX: finalX,
                             newY: finalY
                         });
+                        
+                        emitUpdate('MOVE', { id: element.dataset.id, x: finalX, y: finalY });
                     }
                 }
             }
@@ -1755,6 +1861,8 @@ window.initBoard = function() {
                     before: snapshot,
                     after: newSnapshot
                 });
+                
+                emitUpdate('DRAW', { frameId: frameId, image: canvas.toDataURL() });
             }
         };
 
@@ -1837,6 +1945,8 @@ window.initBoard = function() {
             element: newFrame.element,
             parent: workspace
         });
+        
+        emitUpdate('ADD', { elementType: 'frame', data: { id: newFrame.id, x, y, w: width, h: height, title: `Board ${frames.length}` } });
     }
 
     /***********************
@@ -1946,6 +2056,7 @@ window.initBoard = function() {
             note.remove();
             notes = notes.filter(n => n.dataset.id != noteId);
             updateTracker();
+            emitUpdate('DELETE', { id: noteId, elementType: 'note' });
         });
         deleteItem.classList.add('text-red-500', 'hover:bg-red-50');
         dropdown.appendChild(deleteItem);
@@ -2024,6 +2135,8 @@ window.initBoard = function() {
                 element: note,
                 parent: parent
             });
+            
+            emitUpdate('ADD', { elementType: 'note', data: { id: noteId, x, y, content, sprint } });
         }
         updateTracker();
     }
@@ -2126,7 +2239,7 @@ window.initBoard = function() {
         };
     }
 
-    function deleteElement(data) {
+    function deleteElement(data, isRemote = false) {
         data.el.remove();
         if (data.type === 'frame') frames = frames.filter(f => f.id != data.id);
         else if (data.type === 'note') notes = notes.filter(n => n.dataset.id != data.id);
@@ -2139,6 +2252,10 @@ window.initBoard = function() {
             updateEdges(); // Clean up edges
         }
         updateTracker();
+        
+        if (!isRemote) {
+            emitUpdate('DELETE', { id: data.id, elementType: data.type });
+        }
     }
 
     function duplicateElement(data) {
@@ -2189,6 +2306,8 @@ window.initBoard = function() {
     });
 
     function init() {
+        isRemoteUpdate = true; // Suppress emits during load
+        
         const savedDrawings = localStorage.getItem(DRAWING_STORAGE_KEY);
         if (savedDrawings) drawingsData = JSON.parse(savedDrawings);
         
@@ -2205,6 +2324,8 @@ window.initBoard = function() {
             scrollContainer.scrollLeft = 14000/2 - containerWidth / 2;
             scrollContainer.scrollTop = 14000/2 - containerHeight / 2;
         }
+
+        isRemoteUpdate = false; // Resume emits
 
         customCursor.style.display = 'block';
         const boardContainer = document.getElementById('board-container');

@@ -6,10 +6,10 @@
     <title>Infinite Whiteboard</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJdZ5pG2n6xN/C6KxV6tLz8A8R3I2Dq9XQz8pD8iC4C5I5qV5H5O5P5O5P5O5P5O5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJdZ5pG2n6xN/C6KxV6tLz8A8R3I2Dq9XQz8pD8iC4C5I5qV5H5O5P5O5P5O5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
-    <link rel="stylesheet" href="../css/board.css" />
+    <link rel="stylesheet" href="/css/board.css" />
 
     <style>
         /* Custom Font */
@@ -910,10 +910,22 @@
         </div>
     </div>
     
-    <script src="../javascript/games.js"></script>
-    <script src="../javascript/board.js"></script>
-    <script src="../javascript/chat.js"></script>
-    <script src="../javascript/pomodoro.js"></script>
-
-    </body>
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Scripts loaded as modules or normally. Absolute path handles routing. -->
+    <script src="/javascript/games.js"></script>
+    <script src="/javascript/board.js"></script>
+    <script src="/javascript/chat.js"></script>
+    <script src="/javascript/pomodoro.js"></script>
+    
+    <!-- Ensure board inits if script didn't auto-run -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof io !== 'undefined' && window.initBoard) {
+                 window.initBoard();
+             } else {
+                 console.error('Socket.io or initBoard not found');
+             }
+        });
+    </script>
+</body>
 </html>
