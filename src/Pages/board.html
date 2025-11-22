@@ -48,8 +48,7 @@
 
         /* Context Menu Hover Light Mode */
         body.light-mode .context-menu-item:hover,
-        body.light-mode .history-dot:hover,
-        body.light-mode .sticky-dropdown-item:hover {
+        body.light-mode .history-dot:hover {
             background-color: #F3F4F6 !important;
         }
         
@@ -224,11 +223,29 @@
             color: white;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
+        
+        /* Hover Item Blue Background */
         .sticky-dropdown-item:hover {
-            background-color: #1a1b1d;
+            background-color: #124dca; /* Blue 600 */
         }
+        /* Light mode hover blue background */
+        body.light-mode .sticky-dropdown-item:hover {
+            background-color: #dbeafe !important; /* Blue 100 */
+        }
+        
         .sticky-dropdown-divider {
             border-color: #222426;
+        }
+        
+        /* Dropdown Separator for List Items */
+        .dropdown-separator {
+            border-bottom: 1px solid #222426;
+        }
+        .dropdown-separator:last-child {
+            border-bottom: none;
+        }
+        body.light-mode .dropdown-separator {
+            border-color: #E5E7EB;
         }
         
         /* Submenu specifics */
@@ -730,7 +747,7 @@
     </div>
 
     <!-- CONTEXT MENU -->
-    <div id="context-menu" class="sticky-dropdown fixed z-[9999] hidden w-48 rounded-xl shadow-2xl py-1 text-white animate-bounce-in origin-top-left">
+    <div id="context-menu" class="sticky-dropdown fixed z-[9999] hidden w-64 rounded-2xl shadow-2xl py-2 animate-bounce-in origin-top-left">
         <!-- Items injected by JS -->
     </div>
 

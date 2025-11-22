@@ -2183,12 +2183,12 @@ window.initBoard = function() {
         // Dropdown Menu
         const dropdown = document.createElement('div');
         // Replaced Tailwind styling with custom 'sticky-dropdown' class for easier theming
-        dropdown.className = 'sticky-dropdown absolute top-full right-0 mt-2 w-40 rounded-xl shadow-xl z-[60] hidden flex-col py-1 animate-fade-in-out origin-top-right bg-white';
+        dropdown.className = 'sticky-dropdown absolute top-full right-0 mt-2 w-56 rounded-2xl shadow-xl z-[60] hidden flex-col py-1 animate-fade-in-out origin-top-right';
         dropdown.style.animation = 'none'; // reset animation for clean toggle
         
         const createDropdownItem = (text, onClick, iconClass = null, hasSubmenu = false) => {
             const item = document.createElement('div');
-            item.className = `sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex w-md items-center gap-2 transition-colors relative hover:bg-gray-50 ${hasSubmenu ? 'has-submenu' : ''}`;
+            item.className = `sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex w-md items-center gap-2 transition-colors relative ${hasSubmenu ? 'has-submenu' : ''}`;
             
             if(iconClass) {
                 item.innerHTML = `<i class="${iconClass} w-4"></i> ${text}`;
@@ -2227,7 +2227,7 @@ window.initBoard = function() {
         
         // Create Submenu Container
         const submenu = document.createElement('div');
-        submenu.className = 'sticky-submenu hidden absolute right-full top-0 mr-2 flex-col gap-1 shadow-xl rounded-xl bg-white p-1 min-w-[125px]';
+        submenu.className = 'sticky-submenu hidden absolute right-full top-0 mr-2 flex-col gap-1 shadow-xl rounded-xl p-1 w-48';
         assignBtn.onmouseenter = () => submenu.classList.remove('hidden');
         assignBtn.onmouseleave = () => submenu.classList.add('hidden');
         
@@ -2236,7 +2236,7 @@ window.initBoard = function() {
         
         for(let i=1; i<=sprintCount; i++) {
             const sprintItem = document.createElement('div');
-            sprintItem.className = 'sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 flex items-center gap-2 transition-colors hover:bg-gray-50';
+            sprintItem.className = 'sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 flex items-center gap-2 transition-colors';
             sprintItem.innerText = `Sprint ${i}`;
             sprintItem.onclick = (e) => {
                 e.stopPropagation();
@@ -2402,7 +2402,7 @@ window.initBoard = function() {
             
             const addItem = (text, icon, onClick) => {
                 const item = document.createElement('div');
-                item.className = 'sticky-dropdown-item px-4 py-2 text-sm cursor-pointer rounded-lg mx-1.5 my-1 flex items-center gap-3 transition-colors hover:bg-gray-50';
+                item.className = 'sticky-dropdown-item px-4 py-2 text-xs cursor-pointer mx-1.5 my-0.5 flex items-center gap-3 transition-colors dropdown-separator rounded-lg';
                 item.innerHTML = `<i class="${icon} w-4"></i> ${text}`;
                 item.onclick = (ev) => {
                     ev.stopPropagation();
