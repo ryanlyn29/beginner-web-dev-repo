@@ -2314,7 +2314,7 @@ window.initBoard = function() {
         footer.appendChild(sprintTag);
 
         const avatar = document.createElement('div');
-        avatar.className = 'w-5 h-5 rounded-full bg-yellow-200 flex items-center justify-center text-[9px] font-bold text-yellow-700 shadow-sm';
+        avatar.className = ' px-1.5 py-1 rounded-full bg-yellow-200 flex items-center justify-center text-[9px] font-bold text-yellow-700 shadow-sm';
         avatar.innerText = 'YOU';
         footer.appendChild(avatar);
 
