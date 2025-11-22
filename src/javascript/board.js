@@ -328,6 +328,7 @@ window.initBoard = function() {
                              delete el.dataset.sprint;
                          }
                          
+                         // SYNC: Find sprint tag by class
                          const sprintTag = el.querySelector('.sprint-tag');
                          if (sprintTag) {
                              if (data.sprint) {
@@ -1132,7 +1133,7 @@ window.initBoard = function() {
         penColorsContainer.appendChild(div);
     });
     customColorPreview.style.backgroundColor = penColor;
-    customColorInput.addEventListener('change', e => {
+    customColorInput.addEventListener('input', e => {
         penColor = e.target.value;
         customColorPreview.style.backgroundColor = penColor;
     });
