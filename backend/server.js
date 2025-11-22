@@ -22,16 +22,14 @@ const port = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Correct path resolution relative to backend/server.js
-const srcPath = path.join(__dirname, "..", "src");
-const mainAppPath = path.join(srcPath, "mainapp.html");
+const mainAppPath = path.join(__dirname, "src", "mainapp.html");
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from src directory
-app.use(express.static(srcPath));
+app.use(express.static(path.join(__dirname, 'src')));
 
 // Auth0 configuration
 const config = {
@@ -58,10 +56,13 @@ async function syncAuth0UserToRedis(req, res, next) {
 
     try {
       if (redis && redis.isOpen) {
+          // Check if user exists in Redis using their Auth0 email
           const userId = await redis.get(`email:${auth0User.email}`);
 
           if (!userId) {
-            const uniqueId = auth0User.sub.replace(/\|/g, '-');
+            // User doesn't exist in Redis, create them
+            const uniqueId = auth0User.sub.replace(/\|/g, '-'); // Use Auth0 sub as unique ID
+
             await redis.hSet(`user:${uniqueId}`, {
               id: String(uniqueId),
               name: String(auth0User.name || auth0User.email),
@@ -70,8 +71,13 @@ async function syncAuth0UserToRedis(req, res, next) {
               picture: String(auth0User.picture || ''),
               created_at: String(new Date().toISOString())
             });
+
+            // Create email -> userId mapping
             await redis.set(`email:${auth0User.email}`, uniqueId);
+
             console.log(`✅ Created new user in Redis: ${auth0User.email}`);
+          } else {
+            console.log(`✅ User already exists in Redis: ${auth0User.email}`);
           }
       }
     } catch (error) {
@@ -81,64 +87,98 @@ async function syncAuth0UserToRedis(req, res, next) {
   next();
 }
 
+// Apply sync middleware to all routes
 app.use(syncAuth0UserToRedis);
 
-// Routes
+// Home route - serves the main app
 app.get("/", (req, res) => {
   if (req.oidc.isAuthenticated()) {
-    res.sendFile(mainAppPath);
+    // User is logged in, serve the main app
+    res.sendFile(mainAppPath, (err) => {
+      if (err) {
+        console.error("Error sending mainapp.html", err);
+        res.status(500).send("Error loading page");
+      }
+    });
   } else {
-    res.sendFile(path.join(srcPath, "Pages", "signin.html"), (err) => {
-        if (err) res.redirect('/login');
+    // User is not logged in, show signin page
+    // Ensure path exists, otherwise fallback or send simple html
+    const signinPath = path.join(__dirname, "src/Pages", "signin.html");
+    res.sendFile(signinPath, (err) => {
+        if(err) res.redirect('/login'); // Fallback to Auth0 login if custom page fails
     });
   }
 });
 
+// Profile route - shows Auth0 user info (for debugging)
 app.get("/profile", requiresAuth(), (req, res) => {
   res.send(`<pre>${JSON.stringify(req.oidc.user, null, 2)}</pre>`);
 });
 
+// User data route - shows Redis user data (for debugging)
 app.get("/user-data", requiresAuth(), async (req, res) => {
   try {
     const auth0User = req.oidc.user;
     let userData = {};
+    
     if (redis && redis.isOpen) {
         const userId = await redis.get(`email:${auth0User.email}`);
-        if (userId) userData = await redis.hGetAll(`user:${userId}`);
+        if (userId) {
+             userData = await redis.hGetAll(`user:${userId}`);
+        }
     }
     res.send(`<pre>${JSON.stringify(userData, null, 2)}</pre>`);
   } catch (error) {
+    console.error('Error fetching user data:', error);
     res.status(500).send('Error fetching user data');
   }
 });
 
-// SPA Routes - serve mainapp.html for frontend routing
-app.get(["/board", "/chat", "/room"], requiresAuth(), (req, res) => {
-  res.sendFile(mainAppPath);
+// Board route - protected, requires authentication
+app.get("/board", requiresAuth(), (req, res) => {
+  res.sendFile(mainAppPath, (err) => {
+    if (err) {
+      console.error("Error sending mainapp.html", err);
+      res.status(500).send("Error loading page");
+    }
+  });
+});
+
+// Chat route - protected, requires authentication
+app.get("/chat", requiresAuth(), (req, res) => {
+  res.sendFile(mainAppPath, (err) => {
+    if (err) {
+      console.error("Error sending mainapp.html", err);
+      res.status(500).send("Error loading page");
+    }
+  });
 });
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
+  console.log('User connected:', socket.id);
 
+  // Join a specific board room
   socket.on('join', (boardId) => {
     socket.join(boardId);
-    console.log(`👤 User ${socket.id} joined board: ${boardId}`);
+    console.log(`User ${socket.id} joined board: ${boardId}`);
   });
 
+  // Handle board updates and broadcast to others in the room
   socket.on('board:update', (data) => {
-    // Broadcast to everyone in the room EXCEPT the sender
-    if (data.boardId) {
-        socket.to(data.boardId).emit('board:update', data);
+    const { boardId } = data;
+    if (boardId) {
+        // Broadcast to everyone in the room EXCEPT the sender
+        socket.to(boardId).emit('board:update', data);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('❌ User disconnected:', socket.id);
+    console.log('User disconnected:', socket.id);
   });
 });
 
 httpServer.listen(port, () => {
-    console.log(`🚀 Server listening on port ${port}`);
-    console.log(`📡 Socket.IO ready`);
+    console.log(`Server listening on port ${port}`);
+    console.log(`Socket.IO ready`);
 });

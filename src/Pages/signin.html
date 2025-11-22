@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign Up | Whiteboard Collab</title>
+    <title>Sign In | Whiteflow</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script
@@ -11,102 +11,197 @@
       crossorigin="anonymous"
     ></script>
     <link rel="stylesheet" href="../css/sign-in.css" />
-
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
-      body {
-        font-family: "Poppins", sans-serif;
-      }
-
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-6px); }
-      }
-    </style>
   </head>
 
-  <body class="text-[#1A1A1A] overflow-hidden bg-white">
-    <div id="signin-content" class="flex min-h-screen">
-      <!-- LEFT: SIGN UP FORM -->
-      <div
-        class="flex-1 flex flex-col justify-center px-10 md:px-24 max-w-xl bg-white"
-      >
-        <h1 class="text-3xl font-semibold mb-2">Welcome to WhiteFlow</h1>
-        <p class="text-gray-500 mb-8 text-sm">
-          Sign in or create an account to start collaborating
-        </p>
+  <body class="overflow-hidden">
+    <!-- Homepage Grid Background -->
+    <div class="grid-background"></div>
 
-        <div class="flex flex-col gap-4 max-w-sm">
-          <!-- Auth0 Login Button -->
-          <a
-            href="/login"
-            class="mt-2 bg-[#1E1E1E] text-white py-3 px-6 rounded-full hover:bg-[#698CD1] active:bg-black transition-colors font-medium text-center cursor-pointer  transition-all duration-300"
-          >
-            <i class="fa-solid fa-right-to-bracket mr-2"></i>
-            Sign In / Sign Up with Auth0
-          </a>
+    <div class="relative z-10 flex min-h-screen w-full">
+      
+      <!-- LEFT: LOGIN FORM -->
+      <div class="flex-1 flex flex-col justify-center px-8 md:px-24 lg:max-w-[600px] xl:max-w-[700px] w-full relative bg-white/30 backdrop-blur-sm lg:bg-transparent">
+        
+        <!-- Content Container -->
+        <div class="w-full max-w-md mx-auto z-20">
+          <!-- Logo -->
+          <div class="flex items-center gap-3 mb-10">
+            <i class="fa-solid fa-shapes text-sm bg-[#333] px-2.5 py-1.5 text-white rounded-lg"></i>
+            <span class="font-bold text-xl font-inter tracking-tight">Whiteflow</span>
+          </div>
 
-          <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p class="text-sm text-gray-700">
-              <i class="fa-solid fa-shield-halved text-blue-600 mr-2"></i>
-              <strong>Secure Authentication:</strong> Powered by Auth0
-            </p>
-            <ul class="mt-2 text-xs text-gray-600 list-disc list-inside space-y-1">
-              <li>No passwords stored on our servers</li>
-              <li>Industry-standard security</li>
-              <li>Quick & easy signup process</li>
-            </ul>
+          <!-- Headlines -->
+          <h1 class="text-4xl md:text-5xl font-bold mb-4 text-[#111]">Welcome back</h1>
+          <p class="text-gray-500 mb-10 text-lg font-normal">
+            Ready to get back into the <span class="font-inter font-medium text-gray-800">flow</span>?
+          </p>
+
+          <!-- Auth Button (Styled like homepage CTA) -->
+          <div class="flex flex-col gap-6">
+            <a
+              href="/login"
+              class="btn-dark w-full flex items-center justify-center gap-3 py-4 text-md font-medium group"
+            >
+              <i class="fa-solid fa-right-to-bracket transition-transform"></i>
+              <span>Continue with Auth0</span>
+            </a>
+
+            <!-- Trust/Security Box -->
+            <div class="p-6 glass-panel border border-gray-500 rounded-2xl">
+              <div class="flex items-center gap-2 mb-2 text-gray-900 font-semibold text-sm">
+                <i class="fa-solid fa-shield-halved text-blue-600"></i>
+                Enterprise Grade Security
+              </div>
+              <p class="text-sm text-gray-600 leading-relaxed">
+                We use Auth0 to provide secure, passwordless, and seamless authentication for your team.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT: BOARD -->
-      <div
-        class="hidden lg:flex flex-1 mt-5 mb-5 mr-5 ml-60 relative items-center justify-center bg-[#1A1A1A] rounded-[2rem] overflow-hidden"
-      >
-        <!-- Floating pastel blocks -->
-        <div
-          class="absolute w-64 h-36 bg-[#FFE2E2] rounded-2xl flex flex-col items-start justify-center pl-6 text-[#5C1F1F] font-medium animate-[float_5s_ease-in-out_infinite]"
-          style="top: 18%; left: 18%;"
-        >
-          <i class="fa-solid fa-table-columns mb-2"></i>
-          <span>Dashboard</span>
-        </div>
+      <!-- RIGHT: VISUAL DEMO (MATCHING HOMEPAGE) -->
+      <div class="hidden lg:flex flex-1 items-center justify-center p-8 h-screen sticky top-0">
+        
+        <!-- Scaling container to fit the demo nicely on split screen -->
+        <div class="w-full max-w-[650px] transform scale-[0.85] xl:scale-100 transition-transform duration-500">
+          
+          <!-- Main App Container (From Homepage) -->
+          <div class="w-full bg-white/90 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-2xl overflow-hidden ring-1 ring-gray-900/5 relative">
+            
+            <!-- App Header -->
+            <div class="h-12 border-b border-gray-100 flex items-center justify-between px-4 bg-white/50 backdrop-blur-md relative z-30">
+              <div class="flex items-center gap-3">
+                <div class="flex gap-1.5">
+                  <div class="w-3 h-3 rounded-full bg-red-400/80 shadow-inner"></div>
+                  <div class="w-3 h-3 rounded-full bg-yellow-400/80 shadow-inner"></div>
+                  <div class="w-3 h-3 rounded-full bg-green-400/80 shadow-inner"></div>
+                </div>
+              </div>
+              
+              <!-- Centered Address Bar -->
+              <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-100/50 px-3 py-1 rounded-lg border border-gray-200/50">
+                 <span class="opacity-50"><i class="fa-solid fa-lock text-[10px]"></i></span> whiteboard.pro/demo
+              </div>
 
-        <div
-          class="absolute w-60 h-32 bg-[#E2F6FF] rounded-2xl flex flex-col items-start justify-center pl-6 text-[#16384F] font-medium animate-[float_6s_ease-in-out_infinite_1s]"
-          style="top: 50%; left: 35%;"
-        >
-          <i class="fa-solid fa-folder-open mb-2"></i>
-          <span>Projects</span>
-        </div>
+              <div class="flex items-center gap-3">
+                 <div class="w-7 h-7 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-600 shadow-sm">AL</div>
+              </div>
+            </div>
 
-        <div
-          class="absolute w-56 h-28 bg-[#FFF9CC] rounded-2xl flex flex-col items-start justify-center pl-6 text-[#4A3A00] font-medium animate-[float_7s_ease-in-out_infinite_2s]"
-          style="top: 35%; right: 18%;"
-        >
-          <i class="fa-solid fa-list-check mb-2"></i>
-          <span>Tasks</span>
-        </div>
+            <!-- Canvas Area -->
+            <div class="h-[600px] relative bg-[#F9FAFB] overflow-hidden cursor-crosshair">
+               <!-- Dot Grid -->
+               <div class="absolute inset-0 opacity-[0.4]" 
+                    style="background-image: radial-gradient(#CBD5E1 1.5px, transparent 1.5px); background-size: 24px 24px;">
+               </div>
 
-        <div
-          class="absolute w-48 h-24 bg-[#E6E2FF] rounded-2xl flex flex-col items-start justify-center pl-5 text-[#2E2172] font-medium animate-[float_8s_ease-in-out_infinite_3s]"
-          style="bottom: 20%; left: 20%;"
-        >
-          <i class="fa-solid fa-note-sticky mb-2"></i>
-          <span>Notes</span>
-        </div>
+                <!-- Top UI Layer -->
+               <div class="absolute top-0 left-0 w-full px-4 py-3 flex justify-between items-start z-40 pointer-events-none">
+                  
+                  <!-- Left: Tracker Toggle -->
+                  <div class="fixed bottom-[3%] left-[1.5%] w-10 h-10 rounded-full bg-[#100C08] text-white flex items-center justify-center shadow-lg pointer-events-auto cursor-pointer hover:scale-105 transition-transform">
+                      <i class="fa-solid fa-layer-group fa-sm"></i>
+                  </div>
 
-        <div
-          class="absolute w-52 h-28 bg-[#D8F8E4] rounded-2xl flex flex-col items-start justify-center pl-6 text-[#1B3C28] font-medium animate-[float_9s_ease-in-out_infinite_4s]"
-          style="bottom: 15%; right: 25%;"
-        >
-          <i class="fa-solid fa-user-group mb-2"></i>
-          <span>Collab</span>
+                  <!-- Center: Pomodoro Timer -->
+                  <div class="fixed top-[9%] left-[45%] h-10 flex items-center gap-3 text-gray-200 rounded-2xl bg-[#100C08] border border-[#222426] px-6 shadow-lg pointer-events-auto cursor-pointer hover:bg-[#1b1d20] transition-colors">
+                       <i class="fa-solid fa-stopwatch text-red-500"></i>
+                       <span class="text-sm font-semibold tracking-wider">25:00</span>
+                  </div>
+               </div>
+
+               <!-- Bottom Toolbar -->
+               <div class="absolute bottom-[3%] left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur border border-gray-200 rounded-2xl px-3 py-1.5 flex items-center gap-2 z-40 ">
+                  <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-location-arrow -rotate-90"></i></button>
+                  <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-full"></div>
+                  <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-square"></i></button>
+                  <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-yellow-500"><i class="fas fa-sticky-note"></i></button>
+                  <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-list-check"></i></button>
+                  <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-full"></div>
+                  <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-pen"></i></button>
+               </div>
+
+               <!-- --- Canvas Elements --- -->
+               
+               <!-- Sticky Note -->
+               <div class="absolute top-20 left-8 md:left-16 w-64 bg-[#FFFCF0] border border-yellow-200/60 rounded-2xl p-5 flex flex-col gap-3 z-20 shadow-sm group hover:shadow-md transition-shadow">
+                  <div class="flex items-center justify-between border-b border-yellow-100/80 pb-3">
+                     <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+                        <span class="text-[10px] uppercase font-bold text-yellow-700/40 tracking-widest">Idea</span>
+                     </div>
+                     <i class="fa-solid fa-ellipsis text-yellow-300 text-sm"></i>
+                  </div>
+                  <p class="text-xl font-medium text-gray-800 leading-[1.2] py-1 font-inter">
+                    Infinite canvas that feels <span class="text-yellow-600">native</span>.
+                  </p>
+                  <div class="flex items-center justify-between pt-2 mt-auto">
+                     <div class="px-2 py-0.5 bg-yellow-100/50 rounded-md border border-yellow-200/30 text-[10px] font-semibold text-yellow-700">#Sprint 1</div>
+                  </div>
+               </div>
+
+               <!-- Flowchart Nodes -->
+               <div class="absolute top-40 right-12 w-32 h-14 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center gap-2 z-10">
+                  <div class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(52,211,153,0.2)]"></div>
+                  <span class="text-sm font-semibold text-gray-700">Start</span>
+               </div>
+
+               <div class="absolute top-72 right-24 w-32 h-14 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center gap-2 z-10">
+                  <div class="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_0_2px_rgba(96,165,250,0.2)]"></div>
+                  <span class="text-sm font-semibold text-gray-700">Analysis</span>
+               </div>
+
+               <!-- Connection Lines (SVG) -->
+               <svg class="absolute inset-0 pointer-events-none z-0">
+                  <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                      <path d="M0,0 L0,6 L9,3 z" fill="#CBD5E1" />
+                    </marker>
+                  </defs>
+                  <path d="M 460 200 Q 520 200, 580 180" stroke="#CBD5E1" stroke-width="2" fill="none" stroke-dasharray="6,4" marker-end="url(#arrow)" />
+                  <path d="M 700 210 Q 700 280, 760 310" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)" />
+               </svg>
+
+               <!-- Sprint Task List -->
+               <div class="absolute bottom-20 left-20 w-64 bg-white border border-gray-200/80 rounded-2xl overflow-hidden z-10 shadow-sm">
+                  <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
+                     <h4 class="text-xs font-bold text-gray-900 flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-sm bg-indigo-500"></div>
+                        Sprint Tasks
+                     </h4>
+                     <span class="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">3 items</span>
+                  </div>
+                  <div class="p-2 space-y-0.5">
+                     <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                        <div class="w-5 h-5 bg-indigo-500 rounded-[6px] flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-check text-white text-[10px]" style="stroke-width: 3px;"></i>
+                        </div> 
+                        <span class="text-sm text-gray-400 line-through decoration-gray-200 font-medium">User Research</span>
+                     </div>
+                     <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                        <div class="w-5 h-5 border-[1.5px] border-gray-300 rounded-[6px] bg-white shrink-0"></div> 
+                        <span class="text-sm text-gray-700 font-medium">High-fi Mocks</span>
+                     </div>
+                  </div>
+               </div>
+
+               <!-- Cursors -->
+               <div class="absolute top-[40%] left-[40%] z-30 pointer-events-none animate-float-slow">
+                  <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-blue-500 text-sm"></i>
+                  <div class="absolute top-5 left-4 bg-blue-500 text-white text-[12px] font-bold px-2.5 py-1  rounded-full shadow-sm">Alex</div>
+               </div>
+
+               <div class="absolute bottom-[30%] right-[30%] z-30 pointer-events-none animate-float-slow delay-700">
+                  <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-green-500 text-sm"></i>
+                  <div class="absolute top-5 left-4 bg-green-500 text-white text-[12px] font-bold px-2.5 py-1  rounded-full shadow-sm">Jordan</div>
+               </div>
+
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Auth0 handles all authentication logic -->
+    </div>
   </body>
 </html>
