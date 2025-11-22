@@ -71,7 +71,7 @@ async function syncAuth0UserToRedis(req, res, next) {
               created_at: String(new Date().toISOString())
             });
             await redis.set(`email:${auth0User.email}`, uniqueId);
-            console.log(`✅ Created new user in Redis: ${auth0User.email}`);
+            console.log(`Created new user in Redis: ${auth0User.email}`);
           }
       }
     } catch (error) {
@@ -117,13 +117,61 @@ app.get(["/board", "/chat", "/room"], requiresAuth(), (req, res) => {
   res.sendFile(mainAppPath);
 });
 
+function generateRoomCode(){
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
+  console.log('User connected:', socket.id);
+
+  socket.on('create-room', async (data) => {
+    try {
+      const { roomName, customCode } = data;
+      const roomCode = customCode || generateRoomCode();
+
+      const socketsInRoom = await io.in(roomCode).fetchSockets();
+
+      if (customCode && socketsInRoom.length > 0) {
+        socket.emit('roomError', 'Room code already in use. Try a different one.');
+        return;
+      }
+
+      socket.join(roomCode);
+      console.log(`room created: ${roomCode} - ${roomName}`);
+      socket.emit('roomCreated', {
+        roomCode: roomCode,
+        roomName: roomName
+      });
+    } catch (error) {
+      console.error('error creating room:', error);
+      socket.emit('roomError', 'Error creating room.');
+    }
+  });
+
+  socket.on('join-room', async (roomCode) => {
+    try {
+      const socketsInRoom = await io.in(roomCode).fetchSockets();
+
+      if (socketsInRoom.length === 0) {
+        socket.emit('roomError', 'Room does not exist.');
+        return;
+      }
+
+      socket.join(roomCode);
+      console.log(`User ${socket.id} joined room: ${roomCode}`);
+      
+      socket.emit('roomJoined', { roomCode: roomCode });
+      socket.to(roomCode).emit('userJoined', { userId: socket.id });
+    } catch (error) {
+      console.error('error joining room:', error);
+      socket.emit('roomError', 'Error joining room.');
+    }
+  });
 
   socket.on('join', (boardId) => {
     socket.join(boardId);
-    console.log(`👤 User ${socket.id} joined board: ${boardId}`);
+    console.log(`User ${socket.id} joined board: ${boardId}`);
   });
 
   socket.on('board:update', (data) => {
@@ -134,11 +182,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('❌ User disconnected:', socket.id);
+    console.log('User disconnected:', socket.id);
   });
 });
 
 httpServer.listen(port, () => {
-    console.log(`🚀 Server listening on port ${port}`);
-    console.log(`📡 Socket.IO ready`);
+    console.log(`Server listening on port ${port}`);
+    console.log(`Socket.IO ready`);
 });
