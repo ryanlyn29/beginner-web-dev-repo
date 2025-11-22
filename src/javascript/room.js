@@ -1,3 +1,4 @@
+const socket = io();
 
 // Define UI elements once the script loads (assuming room.html content is in the DOM)
 const actionSelection = document.getElementById('action-selection');
@@ -38,22 +39,44 @@ window.resetPage = function () {
     if (descriptionText) descriptionText.textContent = 'Choose an option below to either create a new collaborative space or join an existing one with a room code.';
 };
 
+socket.on('roomCreated', (data) => {
+    console.log('Room created:', data);
+    alert(`Room created. Code: ${data.roomCode}`);
+    window.location.href = `/board?room=${data.roomCode}`;
+});
+
+socket.on('roomJoined', (data) => {
+    console.log('Joined room:', data);
+    window.location.href = `/board?room=${data.roomCode}`;
+});
+
+socket.on('roomError', (message) => {
+    console.error('Room error:', message);
+    alert(`Error: ${message}`);
+});
+
 // --- Form Submission Handlers ---
 
 // Listen for form submissions (must be done after the script loads)
 if (createRoomForm) {
     createRoomForm.addEventListener('submit', function(event) {
         event.preventDefault();
+        const roomName = document.getElementById('room-name').value;
+        const customCode = document.getElementById('custom-code').value;
         console.log('Creating room with Name:', document.getElementById('room-name').value, 'and Code:', document.getElementById('custom-code').value);
-        // TODO: Add actual room creation and redirection logic (e.g., using fetch and then navigate('/board?room=new_id'))
+        socket.emit('create-room', {
+            roomName: roomName,
+            customCode: customCode || null
+        });
     });
 }
 
 if (joinRoomForm) {
     joinRoomForm.addEventListener('submit', function(event) {
         event.preventDefault();
+        const roomCode = document.getElementById('room-code').value;
         console.log('Joining room with Code:', document.getElementById('room-code').value);
-        // TODO: Add actual room joining and redirection logic (e.g., fetch and then navigate('/board?room=code'))
+        socket.emit('join-room', roomCode);
     });
 }
 
