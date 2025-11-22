@@ -4,9 +4,7 @@ window.initChat = function() {
     // --- State Variables ---
     let isOpen = false; // Initial state: Collapsed
     let messages = [];
-    let showSettings = false;
     let showAccount = false;
-    let showSavedPopup = false;
     
     // --- DOM Elements ---
     const sidebarContainer = document.getElementById('sidebar-container');
@@ -17,13 +15,9 @@ window.initChat = function() {
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-button');
 
-    // Utility Bar Elements
+    // Utility Bar Elements (Account Only - Settings/Save handled by board.js)
     const userIcon = document.getElementById('user-icon');
-    const gearIcon = document.getElementById('gear-icon');
-    const saveButton = document.getElementById('save-button');
-    const settingsOverlay = document.getElementById('settings-overlay');
     const accountOverlay = document.getElementById('account-overlay');
-    const savePopup = document.getElementById('save-popup');
 
     // --- Configuration ---
     const defaultMessages = [
@@ -38,6 +32,8 @@ window.initChat = function() {
         const saved = localStorage.getItem("chatMessages");
         try {
             messages = saved ? JSON.parse(saved) : defaultMessages;
+            // Ensure loaded messages are NOT marked as animated (they are old)
+            messages.forEach(m => m.animated = false);
         } catch (e) {
             console.error("Error parsing messages from localStorage:", e);
             messages = defaultMessages;
@@ -52,6 +48,7 @@ window.initChat = function() {
      * Renders all messages to the DOM and scrolls to the bottom.
      */
     const renderMessages = () => {
+        if (!messagesContainer) return;
         messagesContainer.innerHTML = ''; // Clear previous messages
         messages.forEach((msg) => {
             // Determine alignment and colors
@@ -61,8 +58,11 @@ window.initChat = function() {
                 : "bg-[#2b3037] text-gray-200 self-start";
             const senderClasses = msg.fromSelf ? "self-end" : "self-start";
 
+            // Only apply animation if 'animated' flag is true
+            const animClass = msg.animated ? "animate-bounce-in" : "";
+
             const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${alignClass} gap-1 animate-bounce-in w-full`;
+            messageDiv.className = `flex ${alignClass} gap-1 ${animClass} w-full`;
             
             // Message Bubble
             const bubble = document.createElement('div');
@@ -71,7 +71,6 @@ window.initChat = function() {
             bubble.style.overflowWrap = 'break-word';
             bubble.textContent = msg.text;
             
-
             // Sender Initials
             const senderInitials = document.createElement('div');
             senderInitials.className = `rounded-full flex items-center justify-center text-black text-xs px-2 py-0.5 font-semibold bg-gray-200 ${senderClasses}`;
@@ -80,7 +79,15 @@ window.initChat = function() {
             messageDiv.appendChild(bubble);
             messageDiv.appendChild(senderInitials);
             messagesContainer.appendChild(messageDiv);
+            
+            // After rendering, clear animation flag for next time
+            if (msg.animated) {
+                msg.animated = false;
+            }
         });
+        
+        // Save the state where animated is false so refreshes don't re-animate
+        saveMessages();
 
         // Scroll to the bottom of the chat
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -95,23 +102,52 @@ window.initChat = function() {
      * Applies the dynamic sizing styles based on the isOpen state.
      */
     const renderSidebar = () => {
-        // Apply main container styles
-        sidebarContainer.style.top = isOpen ? "7.5%" : "50%";
+        if (!sidebarContainer) return;
+
+        // Apply main container styles (Animation handled by CSS transition on container)
+        sidebarContainer.style.top = isOpen ? "7.5%" : "95%";
         sidebarContainer.style.transform = isOpen ? "translateY(0)" : "translateY(-50%)";
         sidebarContainer.style.width = isOpen ? "20rem" : "2.5rem";
         sidebarContainer.style.height = isOpen ? "90vh" : "2.5rem";
         sidebarContainer.style.borderRadius = isOpen ? "1.25rem" : "50%";
         
-        // Show/Hide content based on state
+        // Smoothly transition content
         if (isOpen) {
-            toggleCollapsedBtn.style.display = 'none';
+            // 1. Fade out collapsed button
+            toggleCollapsedBtn.style.opacity = '0';
+            toggleCollapsedBtn.style.pointerEvents = 'none';
+
+            // 2. Prepare expanded content
             sidebarExpanded.style.display = 'flex';
             
-            // Render messages immediately (removed 500ms delay)
-            renderMessages(); 
+            // 3. Render messages immediately so layout is ready
+            renderMessages();
+
+            // 4. Delay fade-in slightly to allow container to start expanding
+            setTimeout(() => {
+                toggleCollapsedBtn.style.display = 'none'; // Hide button after fade
+                sidebarExpanded.style.opacity = '1';
+                sidebarExpanded.style.pointerEvents = 'auto';
+            }, 150); 
+
         } else {
+            // 1. Fade out expanded content immediately
+            sidebarExpanded.style.opacity = '0';
+            sidebarExpanded.style.pointerEvents = 'none';
+
+            // 2. Fade in collapsed button
             toggleCollapsedBtn.style.display = 'flex';
-            sidebarExpanded.style.display = 'none';
+            // Force reflow for transition
+            void toggleCollapsedBtn.offsetWidth;
+            toggleCollapsedBtn.style.opacity = '1';
+            toggleCollapsedBtn.style.pointerEvents = 'auto';
+
+            // 3. Hide expanded content from DOM after transition
+            setTimeout(() => {
+                if (!isOpen) { // Check in case user toggled back quickly
+                    sidebarExpanded.style.display = 'none';
+                }
+            }, 300); // Match standard transition time
         }
     };
 
@@ -119,92 +155,68 @@ window.initChat = function() {
         const text = messageInput.value.trim();
         if (!text) return;
 
-        const newMessageObj = { text: text, sender: "L", fromSelf: true };
+        // Mark new message as animated
+        const newMessageObj = { text: text, sender: "L", fromSelf: true, animated: true };
         messages.push(newMessageObj);
         
         messageInput.value = ""; // Clear input
-        saveMessages();
-        renderMessages();
-    };
-
-    const handleSave = () => {
-        if (showSavedPopup) return;
-
-        showSavedPopup = true;
-        renderUtilityBar();
-
-        setTimeout(() => {
-            showSavedPopup = false;
-            renderUtilityBar();
-        }, 2000);
-    };
-    
-    const toggleSettings = (show) => {
-        showSettings = typeof show === 'boolean' ? show : !showSettings;
-        showAccount = false; 
-        renderUtilityBar();
+        renderMessages(); // This will render with animation, then clear flags and save
     };
 
     const toggleAccount = (show) => {
         showAccount = typeof show === 'boolean' ? show : !showAccount;
-        showSettings = false; 
-        renderUtilityBar();
-    };
-
-    const renderUtilityBar = () => {
-        // Render Modals
-        settingsOverlay.style.display = showSettings ? 'flex' : 'none';
-        accountOverlay.style.display = showAccount ? 'flex' : 'none';
-
-        // Render Save Popup
-        if (showSavedPopup) {
-            savePopup.style.display = 'flex';
-            // Restart animation
-            savePopup.classList.remove('animate-fade-in-out');
-            void savePopup.offsetWidth; 
-            savePopup.classList.add('animate-fade-in-out');
-        } else {
-            // Hide after animation cycle completes 
-            if (!savePopup.classList.contains('animate-fade-in-out')) {
-                savePopup.style.display = 'none';
-            }
+        if (accountOverlay) {
+            accountOverlay.style.display = showAccount ? 'flex' : 'none';
         }
     };
-
 
     // --- Event Listeners & Initialization ---
     
     // 1. Load data
     loadMessages();
+
+    // 2. Apply initial transition styles via JS
+    if (sidebarExpanded) {
+        sidebarExpanded.style.transition = 'opacity 0.3s ease-in-out';
+        sidebarExpanded.style.opacity = '0';
+    }
+    if (toggleCollapsedBtn) {
+        toggleCollapsedBtn.style.transition = 'opacity 0.3s ease-in-out';
+    }
     
-    // 2. Initial render for all dynamic elements
+    // 3. Initial render for all dynamic elements
     renderSidebar();
-    renderUtilityBar();
 
-    // 3. Attach Sidebar listeners
-    toggleCollapsedBtn.addEventListener('click', onToggle);
-    toggleExpandedBtn.addEventListener('click', onToggle);
-    sendButton.addEventListener('click', handleSend);
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            handleSend();
-        }
-    });
-
-    // 4. Attach Utility Bar listeners
-    userIcon.addEventListener('click', () => toggleAccount(true));
-    gearIcon.addEventListener('click', () => toggleSettings(true));
-    saveButton.addEventListener('click', handleSave);
-
-    // 5. Add click listeners to close overlays (backdrop clicks)
-    settingsOverlay.addEventListener('click', (e) => {
-        if (e.target === settingsOverlay) toggleSettings(false);
-    });
-    accountOverlay.addEventListener('click', (e) => {
-        if (e.target === accountOverlay) toggleAccount(false);
-    });
+    // 4. Attach Sidebar listeners
+    if (toggleCollapsedBtn) toggleCollapsedBtn.addEventListener('click', onToggle);
+    if (toggleExpandedBtn) toggleExpandedBtn.addEventListener('click', onToggle);
     
-    // Expose toggle functions globally for use in modal buttons
-    window.toggleSettings = toggleSettings;
+    if (sendButton) sendButton.addEventListener('click', handleSend);
+    if (messageInput) {
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleSend();
+            }
+        });
+    }
+
+    // 5. Attach Utility Bar listeners (Account Only)
+    if (userIcon) userIcon.addEventListener('click', () => toggleAccount(true));
+
+    // 6. Add click listeners to close overlays (backdrop clicks)
+    if (accountOverlay) {
+        accountOverlay.addEventListener('click', (e) => {
+            if (e.target === accountOverlay) toggleAccount(false);
+        });
+    }
+    
+    // Expose toggle functions globally for use in modal buttons (HTML onclicks)
     window.toggleAccount = toggleAccount;
 };
+
+// Auto-init for direct page loads or when script is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initChat);
+} else {
+    window.initChat();
+}

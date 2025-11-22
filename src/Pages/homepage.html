@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,14 +8,50 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Handlee&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Public+Sans:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="/css/homepage.css" />
   <script src="https://kit.fontawesome.com/605a1488ff.js" crossorigin="anonymous"></script>
-<script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Grid background */
+    /* ----------- Base styles ----------- */
+    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Handlee&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Public+Sans:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", sans-serif;
+      color: #111;
+      background: #f8f6f4;
+      overflow-x: hidden;
+    }
+
+    /* --- Navbar Blur Effect Styles --- */
+    /* Applied dynamically via homepage.js on scroll */
+    #mainNavbar {
+        transition: all 0.3s ease;
+    }
+
+    #mainNavbar.navbar-scrolled {
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        background-color: rgba(255, 255, 255, 0.6) !important;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    /* ----------- Grid Background ----------- */
     .grid-background {
       position: absolute;
       inset: 0;
@@ -25,13 +62,307 @@
         linear-gradient(to bottom, rgba(34,108,90,0.25) 1px, transparent 1px);
       background-size: 40px 40px;
       animation: gridMove 12s linear infinite;
+      z-index: 0;
     }
 
     @keyframes gridMove {
       0% { background-position: 0 0, 0 0; }
       100% { background-position: 40px 40px, 40px 40px; }
     }
+
+    /* ----------- Hero Container ----------- */
+    .hero-container {
+      position: relative;
+      width: 100vw;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    /* ----------- Hero Content ----------- */
+    .hero-content {
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1rem;
+      animation: fadeInUp 1.2s ease-out forwards;
+    }
+
+    /* Badge (Whiteboard tag) */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid #d1d5db;
+      padding: 0.35rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #444;
+      backdrop-filter: blur(8px);
+      
+    }
+
+    @media (min-width: 768px) {
+      .badge {
+        margin-bottom: 0.5rem;
+      }
+    }
+
+    .badge i {
+      margin-right: 0.5rem;
+      color: #6b7280;
+    }
+
+    /* Headline */
+    .headline {
+      font-size: 2.8rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem; /* space below headline */
+    }
+
+    @media (min-width: 768px) {
+      .headline {
+        font-size: 4rem;
+      }
+    }
+
+    .script {
+      font-family: "Caveat", cursive;
+      color: #1a1a1a;
+    }
+
+    .light {
+      color: rgba(26, 26, 26, 0.9);
+    }
+
+    /* Description */
+    .description {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #4b5563;
+      max-width: 40rem;
+      margin-top: 1.25rem; /* spacing between headline and description */
+    }
+
+    /* Buttons */
+    .buttons {
+      margin-top: 2.5rem; /* spacing between description and buttons */
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-block;
+      
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      letter-spacing: 0.025em;
+      transition: all 0.3s ease;
+      
+    }
+
+    .btn-dark {
+      background: #1a1a1a;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-dark:hover {
+      background: #2b2b2b;
+      
+    }
+
+    .btn-light {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid #d1d5db;
+      color: #333;
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-light:hover {
+      background: #e6e6e6;
+    }
+
+    /* ----------- Floating Elements ----------- */
+    .floating-element {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      opacity: 0;
+      animation: gatherAndBurst 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+
+    .icon {
+      font-size: 1.75rem;
+    }
+
+    .fa-chart-pie{
+      font-size: 3rem;
+    }
+    .fa-square-root-variable{
+      font-size: 2.5rem;
+    }
+
+    .label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    .fa-location-arrowr{
+      rotate: -90deg;
+    }
+
+    /* Floating burst positions */
+    .burst-top-left { --burst-x: -400px; --burst-y: -200px; animation-delay: 0.1s; }
+    .burst-top-right { --burst-x: 350px; --burst-y: -180px; animation-delay: 0.1s; }
+    .burst-bottom-left { --burst-x: -300px; --burst-y: 220px; animation-delay: 0.1s; }
+    .burst-bottom-right { --burst-x: 380px; --burst-y: 260px; animation-delay: 0.1s; }
+    .burst-icon-left { --burst-x: -350px; --burst-y: 150px; animation-delay: 0.1s; }
+    .burst-icon-right { --burst-x: 300px; --burst-y: 250px; animation-delay: 0.1s; }
+
+    /* ----------- Down Arrow ----------- */
+    .down-arrow {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 1s ease;
+      z-index: 30;
+    }
+
+    .down-arrow i {
+      font-size: 1.75rem;
+      color: #555;
+      cursor: pointer;
+      animation: bounce 1.6s infinite;
+      transition: transform 0.3s ease;
+    }
+
+    .down-arrow i:hover {
+      transform: scale(1.1);
+    }
+
+    /* ----------- Animations ----------- */
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(30px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes gatherAndBurst {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+      40% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 1; transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(1); }
+    }
+
+    @keyframes floatIdle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* Floating elements idle motion */
+    .floating-element > * {
+      animation: floatIdle 4s ease-in-out infinite;
+      animation-delay: 2.6s;
+    }
+
+    /* ----------- New Feature Styles ----------- */
+
+    /* Feature Cards */
+    .feature-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid #e5e7eb;
+      border-radius: 1rem;
+      padding: 2rem;
+      transition: all 0.3s ease;
+    }
+
+    
+
+    /* Scroll Reveal Animation Class */
+    .reveal {
+      opacity: 1;
+      transform: translateY(40px);
+      transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Additional Animations */
+    @keyframes bounce-slow {
+      0%, 100% { transform: translateY(0) rotate(var(--tw-rotate)); }
+      50% { transform: translateY(-15px) rotate(var(--tw-rotate)); }
+    }
+
+    .animate-bounce-slow {
+      animation: bounce-slow 3s infinite ease-in-out;
+    }
+
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .animate-float-slow {
+      animation: float-slow 4s ease-in-out infinite;
+    }
+
+    /* Utility for delay */
+    .delay-100 { transition-delay: 100ms; }
+    .delay-200 { transition-delay: 200ms; }
+    .delay-500 { animation-delay: 500ms; }
+    .delay-700 { animation-delay: 700ms; }
+    
+    /* Hide scrollbar for chrome/safari/opera */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
   </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
+  }
+}
+</script>
 </head>
 <body>
   <div class="hero-container">
@@ -67,8 +398,8 @@
     </div>
 
     <div class="floating-element burst-bottom-right">
-      <i class="fa-solid fa-location-arrow icon fa-rotate-105" style="color:#ccdeff"></i>
-      <div class="label" style="background:#dce8ff;color:#444;">Leo</div>
+      <i class="fa-solid fa-location-arrow icon fa-location-arrowr" style="color:#ccdeff"></i>
+      <div class="label left-3" style="background:#dce8ff;color:#444;">Leo</div>
     </div>
 
     <div class="floating-element burst-top-right">
@@ -95,6 +426,438 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Main Content Wrapper -->
+  <main class="main-content relative w-full overflow-hidden">
+    
+    <!-- Continuous Grid Background -->
+    <div class="grid-background"></div>
+
+    <!-- SECTION 1: Feature Highlights -->
+    <section class="relative z-10 max-w-6xl mx-auto px-6 py-24 reveal">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Everything you need to <span class="script text-5xl text-gray-600">create</span>
+        </h2>
+        <p class="text-gray-600 max-w-2xl mx-auto">
+          Powerful tools wrapped in a simple interface. 
+          Designed to keep you in the flow state.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card 1 -->
+        <div class="feature-card group">
+          <div class="w-12 h-12 rounded-full bg-[#ffc9c9] flex items-center justify-center mb-4 ">
+            <i class="fa-solid fa-users text-[#5C1F1F] text-xl"></i>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Real-time Sync</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            See cursors move and ideas appear instantly. Collaboration with zero latency.
+          </p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="feature-card group">
+          <div class="w-12 h-12 rounded-full bg-[#ccdeff] flex items-center justify-center mb-4 ">
+            <i class="fa-solid fa-border-all text-[#2E2172] text-xl"></i>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Infinite Canvas</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Never run out of space. Zoom out to see the big picture or in for the details.
+          </p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="feature-card group">
+          <div class="w-12 h-12 rounded-full bg-[#cbffd1] flex items-center justify-center mb-4 ">
+            <i class="fa-solid fa-wand-magic-sparkles text-[#214B2A] text-xl"></i>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Smart Draw</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Our engine recognizes your rough sketches and turns them into crisp shapes.
+          </p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="feature-card group">
+          <div class="w-12 h-12 rounded-full bg-[#e2d5ff] flex items-center justify-center mb-4 ">
+            <i class="fa-solid fa-clock-rotate-left text-[#4A1D96] text-xl"></i>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Version Travel</h3>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Made a mistake? Scroll back in time to restore any version of your board.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Interactive Demo Preview (UPDATED) -->
+    <section class="px-6 pb-24 max-w-6xl mx-auto relative z-10 reveal">
+      <!-- Main App Container -->
+      <div class="w-full bg-white/90 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-2xl overflow-hidden ring-1 ring-gray-900/5 relative">
+        
+        <!-- App Header -->
+        <div class="h-12 border-b border-gray-100 flex items-center justify-between px-4 bg-white/50 backdrop-blur-md relative z-30">
+          <div class="flex items-center gap-3">
+            <div class="flex gap-1.5">
+              <div class="w-3 h-3 rounded-full bg-red-400/80 shadow-inner"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-400/80 shadow-inner"></div>
+              <div class="w-3 h-3 rounded-full bg-green-400/80 shadow-inner"></div>
+            </div>
+          </div>
+          
+          <!-- Centered Address Bar -->
+          <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs font-medium text-gray-500 bg-gray-100/50 px-3 py-1 rounded-lg border border-gray-200/50">
+             <span class="opacity-50"><i class="fa-solid fa-lock text-[10px]"></i></span> whiteboard.pro/demo
+          </div>
+
+          <div class="flex items-center gap-3">
+             <!-- Share Button Mimic -->
+             <div class="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold rounded-lg shadow-sm cursor-pointer hover:bg-blue-700">Share</div>
+             <div class="w-7 h-7 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-600 shadow-sm cursor-pointer">AL</div>
+          </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="h-[600px] relative bg-[#F9FAFB] overflow-hidden cursor-crosshair">
+           <!-- Dot Grid -->
+           <div class="absolute inset-0 opacity-[0.4]" 
+                style="background-image: radial-gradient(#CBD5E1 1.5px, transparent 1.5px); background-size: 24px 24px;">
+           </div>
+
+            <!-- Top UI Layer -->
+           <div class="absolute top-0 left-0 w-full px-4 py-3 flex justify-between items-start z-40 pointer-events-none">
+              
+              <!-- Left: Tracker Toggle -->
+              <div class="fixed bottom-[3%] left-[1.5%] w-10 h-10 rounded-full bg-[#100C08] text-white flex items-center justify-center shadow-lg pointer-events-auto cursor-pointer hover:scale-105 transition-transform">
+                  <i class="fa-solid fa-layer-group fa-sm"></i>
+              </div>
+
+              <!-- Center: Pomodoro Timer (Collapsed) -->
+              <div class="fixed top-[9%] left-[45%] h-10 flex items-center gap-3 text-gray-200 rounded-2xl bg-[#100C08] border border-[#222426] px-6 shadow-lg pointer-events-auto cursor-pointer hover:bg-[#1b1d20] transition-colors">
+                   <i class="fa-solid fa-stopwatch text-red-500"></i>
+                   <span class="text-sm font-semibold tracking-wider">25:00</span>
+              </div>
+
+              <!-- Right: Chat Toggle -->
+              <div class="fixed bottom-[3%] right-[1.5%] w-10 h-10 rounded-full bg-[#100C08] text-white flex items-center justify-center shadow-lg pointer-events-auto cursor-pointer hover:scale-105 transition-transform">
+                  <i class="fa-solid fa-comment fa-sm"></i>
+              </div>
+           </div>
+
+           <!-- Bottom Toolbar -->
+           <div class="absolute bottom-[3%] left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur border border-gray-200 rounded-2xl px-3 py-1.5 flex items-center gap-2 z-40 ">
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-location-arrow -rotate-90"></i></button>
+              <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-full"></div>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-square"></i></button>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-yellow-500"><i class="fas fa-sticky-note"></i></button>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-list-check"></i></button>
+              <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-full"></div>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="far fa-square"></i></button>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="far fa-circle"></i></button>
+              <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-full"></div>
+              <button class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition text-gray-600"><i class="fas fa-pen"></i></button>
+           </div>
+
+           <!-- --- Canvas Elements --- -->
+           
+           <!-- Sticky Note: No Shadow on Hover -->
+           <div class="absolute top-20 left-12 md:left-24 w-64 bg-[#FFFCF0] border border-yellow-200/60 rounded-2xl p-5 flex flex-col gap-3 z-20 shadow-sm cursor-pointer group hover:shadow-none transition-shadow">
+              <div class="flex items-center justify-between border-b border-yellow-100/80 pb-3">
+                 <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+                    <span class="text-[10px] uppercase font-bold text-yellow-700/40 tracking-widest">Idea</span>
+                 </div>
+                 <i class="fa-solid fa-ellipsis text-yellow-300 text-sm"></i>
+              </div>
+              <p class="text-xl font-medium text-gray-800 leading-[1.2] py-1 font-inter">
+                Infinite canvas that feels <span class="text-yellow-600">native</span>.
+              </p>
+              <div class="flex items-center justify-between pt-2 mt-auto">
+                 <div class="px-2 py-0.5 bg-yellow-100/50 rounded-md border border-yellow-200/30 text-[10px] font-semibold text-yellow-700">#Sprint 1</div>
+                 <div class="w-5 h-5 rounded-full bg-yellow-200 flex items-center justify-center text-[9px] font-bold text-yellow-700 shadow-sm">YOU</div>
+              </div>
+           </div>
+
+           <!-- Flowchart Nodes: Pill Style -->
+           <!-- Node 1: Start -->
+           <div class="absolute top-40 right-12 md:right-72 w-32 h-14 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center gap-2 z-10 cursor-pointer hover:shadow-md transition-shadow">
+              <div class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(52,211,153,0.2)]"></div>
+              <span class="text-sm font-semibold text-gray-700">Start</span>
+           </div>
+
+           <!-- Node 2: Analysis -->
+           <div class="absolute top-72 right-12 md:right-56 w-32 h-14 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center gap-2 z-10 cursor-pointer hover:shadow-md transition-shadow">
+              <div class="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_0_2px_rgba(96,165,250,0.2)]"></div>
+              <span class="text-sm font-semibold text-gray-700">Analysis</span>
+           </div>
+
+           <!-- Node 3: Prototype -->
+           <div class="absolute top-[26rem] right-12 md:right-40 w-32 h-14 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center gap-2 z-10 cursor-pointer hover:shadow-md transition-shadow">
+              <div class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_0_2px_rgba(192,132,252,0.2)]"></div>
+              <span class="text-sm font-semibold text-gray-700">Prototype</span>
+           </div>
+
+           <!-- Connection Lines (SVG) -->
+           <svg class="absolute inset-0 pointer-events-none z-0">
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#CBD5E1" />
+                </marker>
+              </defs>
+              <!-- Sticky to Start -->
+              <path d="M 460 200 Q 520 200, 580 180" stroke="#CBD5E1" stroke-width="2" fill="none" stroke-dasharray="6,4" marker-end="url(#arrow)" />
+              <!-- Start to Analysis -->
+              <path d="M 700 210 Q 700 280, 760 310" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)" />
+              <!-- Analysis to Prototype -->
+              <path d="M 820 345 Q 820 400, 880 430" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrow)" />
+           </svg>
+
+           <!-- Sprint Task List -->
+           <div class="absolute bottom-20 left-20 md:left-32 w-64 bg-white border border-gray-200/80 rounded-2xl overflow-hidden z-10 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
+                 <h4 class="text-xs font-bold text-gray-900 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-sm bg-indigo-500"></div>
+                    Sprint Tasks
+                 </h4>
+                 <span class="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">3 items</span>
+              </div>
+              <div class="p-2 space-y-0.5">
+                 <!-- Checked Item -->
+                 <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                    <div class="w-5 h-5 bg-indigo-500 rounded-[6px] flex items-center justify-center shrink-0 transition-transform">
+                        <i class="fa-solid fa-check text-white text-[10px]" style="stroke-width: 3px;"></i>
+                    </div> 
+                    <span class="text-sm text-gray-400 line-through decoration-gray-200 font-medium">User Research</span>
+                 </div>
+                 <!-- Unchecked Item -->
+                 <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                    <div class="w-5 h-5 border-[1.5px] border-gray-300 rounded-[6px] group-hover:border-indigo-400 transition-colors bg-white shrink-0"></div> 
+                    <span class="text-sm text-gray-700 font-medium">High-fi Mocks</span>
+                 </div>
+                 <!-- Unchecked Item -->
+                 <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                    <div class="w-5 h-5 border-[1.5px] border-gray-300 rounded-[6px] group-hover:border-indigo-400 transition-colors bg-white shrink-0"></div> 
+                    <span class="text-sm text-gray-700 font-medium">Interaction</span>
+                 </div>
+              </div>
+           </div>
+
+           <!-- Cursors -->
+           <div class="absolute top-[40%] left-[40%] z-30 pointer-events-none animate-float-slow">
+              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-blue-500 text-sm"></i>
+              <div class="absolute top-5 left-4 bg-blue-500 text-white text-[12px] font-bold px-2 py-0.5 rounded-full shadow-sm">Alex</div>
+           </div>
+
+           <div class="absolute bottom-[30%] right-[30%] z-30 pointer-events-none animate-float-slow delay-700">
+              <i class="fa-solid fa-location-arrow icon fa-location-arrowr text-green-500 text-sm"></i>
+              <div class="absolute top-5 left-4 bg-green-500 text-white text-[12px] font-bold px-2 py-0.5 rounded-full shadow-sm">Jordan</div>
+           </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: Why Choose (Storytelling) -->
+    <section class="relative z-10 max-w-4xl mx-auto px-6 py-24 reveal">
+      <div class="flex flex-col md:flex-row items-center gap-12">
+        <div class="flex-1 text-center md:text-left">
+          <h2 class="text-3xl md:text-4xl font-bold mb-6 leading-tight">
+            Built for speed,<br>
+            designed for <span class="script text-5xl text-indigo-600 relative -top-1">flow.</span>
+          </h2>
+          <p class="text-gray-600 mb-6 leading-relaxed">
+            We stripped away the complex menus and confusing settings. Whiteboard is purely about getting ideas out of your head and onto the screen as fast as possible.
+          </p>
+          <a href="#" class="text-indigo-600 font-semibold hover:underline decoration-2 underline-offset-4">Read our philosophy &rarr;</a>
+        </div>
+
+        <!-- Value Pillars -->
+        <div class="flex-1 grid grid-cols-1 gap-4 w-full">
+          <div class="bg-white/80 backdrop-blur p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-10 h-10 bg-[#cbffd1] rounded-full flex items-center justify-center">
+              <i class="fa-solid fa-bolt text-[#214B2A]"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-sm">Lightning Fast</h4>
+              <p class="text-xs text-gray-500">Load boards instantly, zero lag.</p>
+            </div>
+          </div>
+
+          <div class="bg-white/80 backdrop-blur p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-10 h-10 bg-[#ccdeff] rounded-full flex items-center justify-center">
+              <i class="fa-solid fa-feather text-[#2E2172]"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-sm">Lightweight</h4>
+              <p class="text-xs text-gray-500">Works on any device, anywhere.</p>
+            </div>
+          </div>
+
+          <div class="bg-white/80 backdrop-blur p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-10 h-10 bg-[#e2d5ff] rounded-full flex items-center justify-center">
+              <i class="fa-solid fa-pen-ruler text-[#4A1D96]"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-sm">Adaptive Tools</h4>
+              <p class="text-xs text-gray-500">Context-aware controls when you need them.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: Testimonials -->
+    <section class="relative z-10 max-w-6xl mx-auto px-6 py-24 reveal">
+      <h2 class="text-center text-3xl font-bold mb-12">Loved by thinkers & doers</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Testimonial 1 -->
+        <div class="bg-white p-6 rounded-2xl border border-gray-300 shadow-sm relative hover:shadow-lg transition-shadow">
+          <i class="fa-solid fa-quote-left text-gray-200 text-4xl absolute top-4 right-4 z-1"></i>
+          <p class="text-gray-600 mb-6 text-sm leading-relaxed z-5">
+            "I used to use three different tools for my workflow. Now I just use Whiteboard. It feels like an extension of my brain."
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+              JD
+            </div>
+            <div>
+              <div class="font-bold text-sm">Jane Doe</div>
+              <div class="text-xs text-gray-400">Product Designer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 2 -->
+        <div class="bg-white p-6 rounded-2xl border border-gray-300 shadow-sm relative mt-4 md:mt-0 hover:shadow-lg transition-shadow">
+          <i class="fa-solid fa-quote-left text-gray-200 text-4xl absolute top-4 right-4 z-1"></i>
+          <p class="text-gray-600 mb-6 text-sm leading-relaxed z-5">
+            "The real-time collaboration is actually real-time. No lag, no ghost cursors. Just pure creative flow with my team."
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm">
+              MS
+            </div>
+            <div>
+              <div class="font-bold text-sm">Mike Smith</div>
+              <div class="text-xs text-gray-400">Engineering Lead</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 3 -->
+        <div class="bg-white p-6 rounded-2xl border border-gray-300 shadow-sm relative mt-8 md:mt-0 hover:shadow-lg transition-shadow">
+          <i class="fa-solid fa-quote-left text-gray-200 text-4xl absolute top-4 right-4"></i>
+          <p class="text-gray-600 mb-6 text-sm leading-relaxed">
+            "Finally, a whiteboard tool that doesn't feel like enterprise software. It's playful, fast, and actually fun to use."
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-sm">
+              AK
+            </div>
+            <div>
+              <div class="font-bold text-sm">Anna Kim</div>
+              <div class="text-xs text-gray-400">Freelance Illustrator</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: CTA -->
+    <section class="relative z-10 px-6 pb-32 pt-12 reveal">
+      <div class="max-w-4xl mx-auto bg-gradient-to-br from-white to-gray-50 rounded-3xl border border-gray-300 p-12 text-center relative overflow-hidden">
+        
+        <!-- Decorative Doodles Background -->
+        <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" 
+             style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 20px 20px;">
+        </div>
+
+        <div class="relative z-10">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6 text-gray-900">
+            Ready to start <span class="script text-3xl md:text-4xl text-indigo-500">sketching?</span>
+          </h2>
+          <p class="text-gray-600 mb-8 max-w-lg mx-auto text-md">
+            Join thousands of teams bringing their ideas to life. <br>No credit card required.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="./board" class="btn btn-dark text-lg px-8 py-1.5">Start Creating</a>
+            <a href="#" class="btn btn-light text-lg px-8 py-1.5">View Plans</a>
+          </div>
+        </div>
+
+        <!-- Floating Icons CTA -->
+        <i class="fa-solid fa-pencil absolute top-12 left-12 text-3xl text-pink-200 rotate-45 animate-float-slow"></i>
+        <i class="fa-regular fa-lightbulb absolute bottom-12 right-12 text-3xl text-yellow-200 -rotate-12 animate-float-slow delay-500"></i>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="relative z-10 bg-[#100C08] text-white py-16 border-t border-gray-800">
+      <div class="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        <!-- Brand & Bio -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-shapes text-xs bg-[#333] px-2.5 py-1.5 text-white rounded-lg"></i>
+                  <span class="font-semibold font-inter">Whiteflow</span> 
+          </div>
+          <p class="text-gray-400 text-sm leading-relaxed">
+            The fastest way to visualize your ideas. Built for teams who move fast and break things (but not their workflow).
+          </p>
+          <div class="flex gap-4 pt-2">
+             <a href="#" class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-white hover:text-black transition-colors"><i class="fa-brands fa-twitter"></i></a>
+             <a href="#" class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-white hover:text-black transition-colors"><i class="fa-brands fa-github"></i></a>
+             <a href="#" class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-white hover:text-black transition-colors"><i class="fa-brands fa-linkedin"></i></a>
+          </div>
+        </div>
+
+        <!-- Links Column 1 -->
+        <div>
+          <h4 class="font-bold text-sm uppercase tracking-wider mb-4 text-gray-500">Product</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#" class="hover:text-white transition-colors">Features</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Integrations</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Pricing</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Changelog</a></li>
+          </ul>
+        </div>
+
+        <!-- Links Column 2 -->
+        <div>
+          <h4 class="font-bold text-sm uppercase tracking-wider mb-4 text-gray-500">Resources</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#" class="hover:text-white transition-colors">Documentation</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Community</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Templates</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+          </ul>
+        </div>
+
+        <!-- Links Column 3 -->
+        <div>
+          <h4 class="font-bold text-sm uppercase tracking-wider mb-4 text-gray-500">Company</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#" class="hover:text-white transition-colors">About</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Legal</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="max-w-6xl mx-auto px-6 pt-12 mt-12 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+         <p>&copy; 2023 Whiteboard Inc. All rights reserved.</p>
+         <div class="flex gap-6">
+           <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+           <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+           <a href="#" class="hover:text-white transition-colors">Cookie Settings</a>
+         </div>
+      </div>
+    </footer>
+
+  </main>
+
+  <script src="../javascript/homepage.js"></script>
 </body>
 </html>

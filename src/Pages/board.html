@@ -6,10 +6,10 @@
     <title>Infinite Whiteboard</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJdZ5pG2n6xN/C6KxV6tLz8A8R3I2Dq9XQz8pD8iC4C5I5qV5H5O5P5O5P5O5P5O5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJdZ5pG2n6xN/C6KxV6tLz8A8R3I2Dq9XQz8pD8iC4C5I5qV5H5O5P5O5P5O5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
-    <link rel="stylesheet" href="../css/board.css" />
+    <link rel="stylesheet" href="/css/board.css" />
 
     <style>
         /* Custom Font */
@@ -17,7 +17,199 @@
         body {
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
         }
+        
+        /* --- DARK MODE / LIGHT MODE VARIABLES --- */
+        
+        /* Board Background */
+        body.light-mode #board-container {
+            background-color: #F9FAFB !important; /* gray-50 */
+        }
+        
+        /* --- Containers (Trackers, Sidebar, Settings, Context Menu) --- */
+        body.light-mode #tracker-container,
+        body.light-mode #sidebar-container,
+        body.light-mode #settings-card,
+        body.light-mode #share-popup,
+        body.light-mode #user-popup,
+        body.light-mode #custom-alert > div,
+        body.light-mode #input-modal > div,
+        body.light-mode #context-menu,
+        body.light-mode #history-tracker,
+        body.light-mode #history-tooltip {
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important; /* Distinct light border */
+            color: #1F2937 !important; /* gray-800 */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        /* Context Menu Hover Light Mode */
+        body.light-mode .context-menu-item:hover,
+        body.light-mode .history-dot:hover {
+            background-color: #F3F4F6 !important;
+        }
+
+        /* --- Headers (Chat & Tracker) --- */
+        body.light-mode #sidebar-expanded .bg-\[\#151313\],
+        body.light-mode #tracker-expanded .bg-\[\#151313\],
+        body.light-mode #settings-card .bg-\[\#151313\],
+        body.light-mode .popup-header {
+            background-color: #E5E7EB !important; /* Light Gray Header */
+            border-bottom-color: #D1D5DB !important;
+            color: #1F2937 !important;
+        }
+        
+        body.light-mode #sidebar-expanded .font-semibold,
+        body.light-mode #tracker-expanded .font-semibold {
+            color: #555e6b !important; /* Darker Gray Text */
+        }
+        
+        /* Collapsed Toggles (Chat & Layers) - Keep Icon White */
+        body.light-mode #toggle-collapsed,
+        body.light-mode #tracker-toggle-collapsed {
+            color: #FFFFFF !important;
+        }
+        
+        /* --- Undo / Redo Buttons --- */
+        body.light-mode #undoBtn,
+        body.light-mode #redoBtn {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important; /* Dark Icon */
+            border-color: #D1D5DB !important;
+        }
+        body.light-mode #undoBtn:hover,
+        body.light-mode #redoBtn:hover {
+            background-color: #F3F4F6 !important; /* Light Gray Hover */
+        }
+
+        /* --- Pomodoro Timer --- */
+        /* Container Background - Light Gray */
+        body.light-mode #pomodoro-container,
+        body.light-mode #pomodoro-expanded {
+            background-color: #F3F4F6 !important; /* Light Gray */
+            border-color: #D1D5DB !important;
+            color: #1F2937 !important;
+        }
+        
+        /* Inner Pomodoro Backgrounds */
+        body.light-mode #pomodoro-expanded .bg-\[\#151313\], /* Header/Footer */
+        body.light-mode #pomodoro-expanded .bg-\[\#100C08\]  /* Content */ {
+            background-color: #F3F4F6 !important;
+            border-color: #E5E7EB !important;
+        }
+        
+        /* Pomodoro Timer Text */
+        body.light-mode #timer-display {
+            color: #111827 !important; /* Dark text */
+        }
+        body.light-mode #pomodoro-count {
+            color: #111827 !important;
+        }
+        
+        /* Games Text - Force White as requested */
+        body.light-mode #game-view {
+            background-color: #100C08 !important; /* Dark BG to make white text visible */
+            color: #FFFFFF !important;
+        }
+
+        /* Pomodoro Buttons */
+        body.light-mode #pomodoro-toggle-collapsed {
+            background-color: #FFFFFF !important;
+            border-color: #E5E7EB !important;
+            color: #1F2937 !important;
+        }
+        body.light-mode #pomodoro-toggle-collapsed:hover {
+            background-color: #F3F4F6 !important;
+        }
+        body.light-mode #pomodoro-start-stop {
+            background-color: #1F2937 !important; /* Dark button */
+            color: #FFFFFF !important; /* White Icon */
+        }
+        body.light-mode #pomodoro-reset {
+            background-color: #4B5563 !important; /* Gray-600 */
+            color: #FFFFFF !important; /* White Icon */
+        }
+
+        /* --- Chat Styling --- */
+        /* Input Box Container */
+        body.light-mode #sidebar-expanded .bg-\[\#222426\] {
+            background-color: #E5E7EB !important; /* Light Gray */
+            border-color: #D1D5DB !important;
+        }
+        
+        /* Send Button - White Arrow */
+        body.light-mode #send-button {
+            color: #FFFFFF !important;
+        }
+
+        /* Chat Messages - Force White Text */
+        /* Received Bubbles (Dark Gray background in light mode) */
+        body.light-mode #messages-container .bg-\[\#2b3037\] {
+            background-color: #4B5563 !important; /* Gray-600 */
+            color: #FFFFFF !important;
+        }
+        /* Sent Bubbles (Blue background) */
+        body.light-mode #messages-container .bg-blue-600 {
+            color: #FFFFFF !important;
+        }
+
+        /* --- Utility Bar & General --- */
+        body.light-mode #utility-bar {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important;
+            border-bottom: 1px solid #E5E7EB !important;
+        }
+        
+        /* Share Button Hover */
+        body.light-mode .hover\:bg-\[\#2a3a48\]:hover {
+            background-color: #E5E7EB !important; /* Light Gray Hover */
+            color: #1F2937 !important;
+        }
+        
+        /* Save Button - White Text */
+        body.light-mode #save-button {
+            color: #FFFFFF !important;
+        }
+
+        /* Save Popup - Fix for Light Mode */
+        body.light-mode #save-popup {
+            background-color: #1F2937 !important; /* Keep dark background for contrast */
+            color: #FFFFFF !important; /* Force white text */
+            border-color: #D1D5DB !important;
+        }
+        body.light-mode #save-popup i {
+            color: #FFFFFF !important; /* Force white checkmark */
+        }
+        
+        /* Closing Buttons Hover - Light Gray in Light Mode */
+        body.light-mode #close-settings:hover,
+        body.light-mode #toggle-expanded:hover,
+        body.light-mode #tracker-toggle-expanded:hover,
+        body.light-mode #pomodoro-toggle-expanded:hover {
+            background-color: #E5E7EB !important; /* Light Gray */
+            color: #111827 !important; /* Dark Icon */
+        }
+        
+        /* Settings Headers */
+        body.light-mode #settings-card .bg-\[\#151313\] {
+            background-color: #F3F4F6 !important;
+            border-color: #E5E7EB !important;
+        }
+        
+        /* Inner Cards */
+        body.light-mode .bg-\[\#1a1b1d\], 
+        body.light-mode #settings-card .bg-\[\#1a1b1d\] {
+            background-color: #FFFFFF !important;
+            border-color: #E5E7EB !important;
+        }
+        
+        /* Global Text Swaps (Low Specificity, overridden by above) */
+        body.light-mode .text-white { color: #111827 !important; } 
+        body.light-mode .text-gray-400 { color: #6B7280 !important; } 
+        body.light-mode .text-gray-200 { color: #374151 !important; }
+        body.light-mode .text-gray-100 { color: #111827 !important; }
+
         
         /* Custom Bounce-in Animation for Messages */
         @keyframes bounceIn {
@@ -42,65 +234,292 @@
 
        .custom-scroll::-webkit-scrollbar {
             /* Set a common thickness for both axes */
-            width: 14px; 
-            height: 14px; 
+            width: 8px; 
+            height: 8px; 
             background: transparent;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: #848484;
+            background: #4B5563;
             border-radius: 9999px;
-            
-            
-            border: 4px solid transparent; 
-            
             background-clip: padding-box; 
         }
         .custom-scroll::-webkit-scrollbar-button {
             display: none;
         }
 
-        /* Base styles for the sidebar container */
+        /* Base styles for the sidebar container (Right - Chat) */
         #sidebar-container {
-        right: 1.25rem; /* right-5 */
-        z-index: 50; 
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        backdrop-filter: blur(4px);
-        overflow: hidden;
-        transition: all 500ms ease-in-out;
-        background-color: #100C08;
-        color: white;
-        font-family: 'Inter', sans-serif;
-        letter-spacing: 0.05em;
-        position: fixed;
-    }
+            right: 1.25rem; /* right-5 */
+            z-index: 50; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(4px);
+            overflow: hidden;
+            transition: all 500ms ease-in-out;
+            background-color: #100C08;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.05em;
+            position: fixed;
+        }
+
+        /* Base styles for the tracker container (Left - Element Tracker) */
+        #tracker-container {
+            left: 1.25rem; /* left-5 */
+            z-index: 50; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(4px);
+            overflow: hidden;
+            transition: all 500ms ease-in-out;
+            background-color: #100C08;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.05em;
+            position: fixed;
+        }
         
         /* Base styles for the pomodoro container (UPDATED) */
-      #pomodoro-container {
-        left: 50%; /* Center horizontally */
-        transform: translateX(-50%); /* Adjust for left: 50% */
-        top: 7%; /* Below utility bar */
-        z-index: 50; 
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        backdrop-filter: blur(4px);
-        overflow: hidden;
-        transition: all 500ms ease-in-out;
-        background-color: transparent; 
-        color: white;
-        position: fixed;
-        /* REMOVED: width: 6rem; and height: 2.25rem; */
-        border-radius: 0.8rem; /* Small rounded rectangle */
-    }
+        #pomodoro-container {
+            left: 50%; /* Center horizontally */
+            transform: translateX(-50%); 
+            top: 7.5%; /* Consistent with top offset */
+            z-index: 50; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(10px); /* Increased blur for modern look */
+            overflow: hidden;
+            transition: all 500ms ease-in-out;
+            background-color: #100C08; /* Match board theme */
+            color: white;
+            font-family: 'Inter', sans-serif;
+            position: fixed;
+            /* Set initial dimensions to prevent blackout issues */
+            width: 120px;
+            height: 40px;
+            border-radius: 1rem; /* rounded-2xl default */
+        }
+
+        /* History Tracker - Fixed Vertical Pill */
+        #history-tracker {
+            position: fixed;
+            right: 1.25rem; /* right-5 to match Undo/Redo */
+            top: calc(7.5% + 5rem); /* Position directly below the Undo/Redo container */
+            width: 2.2rem; /* Fixed width, matches collapsed sidebar width approximately */
+            max-height: 40vh; /* Fixed max height */
+            background-color: #100C08;
+            border: 1px solid #222426;
+            border-radius: 9999px; /* Pill shape */
+            z-index: 45;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem 0;
+            gap: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            scrollbar-width: none; /* Hide scrollbar FF */
+            -ms-overflow-style: none; /* Hide scrollbar IE */
+        }
+        
+        /* History Scrollbar Refinement - Hide completely */
+        #history-tracker::-webkit-scrollbar {
+            display: none; /* Hide scrollbar Chrome/Safari */
+        }
+        
+        .history-dot {
+            width: 0.75rem; /* w-3 */
+            height: 0.75rem; /* h-3 */
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        .history-dot:hover {
+            transform: scale(1.2);
+        }
+
+        /* Tooltip for History - Fixed positioning */
+        #history-tooltip {
+            position: fixed;
+            z-index: 60;
+            padding: 0.75rem 1rem; /* More padding like a card */
+            background-color: #100C08; /* Match Board Tracker BG */
+            color: white;
+            border-radius: 0.75rem; /* Rounded like other modals */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #222426; /* Match Board Tracker Border */
+            pointer-events: none;
+            display: none; /* Toggled by JS */
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 9rem;
+        }
+        
+        /* Tooltip Label Styling */
+        #tooltip-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.025em;
+        }
+        #tooltip-time {
+            font-size: 0.65rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+        
+        /* Tooltip Arrow (Right side, pointing to dot) */
+        #history-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -0.25rem; /* Stick out right */
+            transform: translateY(-50%) rotate(45deg);
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #100C08; /* Match BG */
+            border-top: 1px solid #222426; /* Match Border */
+            border-right: 1px solid #222426; /* Match Border */
+        }
+        
+        /* Light Mode overrides for History Tooltip Arrow */
+        body.light-mode #history-tooltip::after {
+            background-color: #FFFFFF !important;
+            border-color: #D1D5DB !important;
+        }
+
+        /* SVG Layer for Flow Edges */
+        #edges-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to board/nodes */
+            z-index: 0;
+            overflow: visible;
+        }
+        
+        /* Edges should have pointer events for selection if needed, but lines themselves usually don't need it unless deleting */
+        .edge-path {
+            stroke: #94A3B8; /* Homepage style: stroke-#94A3B8 */
+            stroke-width: 2px;
+            fill: none;
+            pointer-events: stroke;
+            cursor: pointer;
+        }
+        .edge-path:hover {
+            stroke: #3b82f6;
+            stroke-width: 3px;
+        }
+
+        /* Handle Styles */
+        .flow-handle {
+            width: 10px;
+            height: 10px;
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 10;
+            cursor: crosshair;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .flow-handle:hover {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+        .handle-top { top: -5px; left: 50%; transform: translateX(-50%); }
+        .handle-right { right: -5px; top: 50%; transform: translateY(-50%); }
+        .handle-bottom { bottom: -5px; left: 50%; transform: translateX(-50%); }
+        .handle-left { left: -5px; top: 50%; transform: translateY(-50%); }
+
+        /* Dropdown Animation */
+        .dropdown-enter {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        .dropdown-enter-active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+        }
+
+        /* Folder Styles in Tracker */
+        .folder-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 1000px;
+            opacity: 1;
+            overflow: hidden;
+        }
+        .folder-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+        .folder-chevron {
+            transition: transform 0.2s;
+        }
+        .folder-chevron.collapsed {
+            transform: rotate(-90deg);
+        }
+        .drag-over-folder {
+            background-color: rgba(59, 130, 246, 0.2) !important;
+            border: 1px dashed #3b82f6 !important;
+        }
+        
+        /* Input Placeholder Style */
+        .placeholder-input::placeholder {
+            color: #9CA3AF; /* Gray-400 */
+        }
     </style>
 </head>
 
 <body>
-    <div id="board-container" class="bg-[#100C08] relative overflow-hidden select-none">
+    <div id="board-container" class="bg-[#100C08] relative overflow-hidden select-none transition-colors duration-300">
         <div id="scrollContainer" class="scroll-container custom-scroll ">
-            <div id="workspace" class="infinite-space"></div>
+            <div id="workspace" class="infinite-space relative origin-top-left transition-transform duration-75 ease-linear">
+                <!-- SVG Layer for connecting lines -->
+                <svg id="edges-layer">
+                    <defs>
+                        <!-- Homepage Arrow Style -->
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#CBD5E1" />
+                        </marker>
+                        <marker id="arrowhead-hover" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6" />
+                        </marker>
+                    </defs>
+                </svg>
+                <!-- Elements will be appended here -->
+            </div>
         </div>
 
+        <!-- Undo/Redo Fixed Position -->
+        <div class="fixed top-[7.5%] right-5 flex flex-col z-50  rounded-3xl  shadow-lg ">
+            <button id="undoBtn" class="bg-[#100C08] w-9 h-9 hover:bg-black text-white rounded-t-3xl cursor-pointer  flex items-center justify-center transition-all border border-[#222426] border-b-0" disabled title="Undo (Ctrl+Z)">
+                <i class="fas fa-undo fa-sm z-60"></i>
+            </button>
+            <button id="redoBtn" class="w-9 h-9 bg-[#100C08]  hover:bg-black text-white rounded-b-3xl cursor-pointer   flex items-center justify-center transition-all border border-[#222426]" disabled title="Redo (Ctrl+Y)">
+                <i class="fas fa-redo fa-sm z-60"></i>
+            </button>
+        </div>
+
+        <!-- History Tracker (Fixed Pill) -->
+        <div id="history-tracker" class="custom-scroll">
+            <!-- Dots injected by JS -->
+        </div>
+        
+        <!-- History Tooltip (Fixed Position) -->
+        <div id="history-tooltip">
+            <span id="tooltip-label" class="font-bold text-sm text-gray-200">Action</span>
+            <span id="tooltip-time" class="text-[10px] text-gray-400 mt-0.5">12:00 PM</span>
+        </div>
+
+        <!-- Toolbar -->
         <div id="toolbar"
             class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white backdrop-blur-xl border border-gray-300 flex items-center gap-2 py-1.5 px-2 rounded-2xl shadow-2xl z-50">
+            
             <button id="mouseTool" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Mouse">
                 <i class="fas fa-location-arrow -rotate-90"></i>
             </button>
@@ -112,6 +531,22 @@
             </button>
             <button id="addNote" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Add Sticky Note">
                 <i class="fas fa-sticky-note"></i>
+            </button>
+            <button id="addTask" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Add Task List">
+                <i class="fas fa-list-check"></i>
+            </button>
+
+            <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-4xl"></div>
+
+            <!-- Flow Chart Shapes -->
+             <button id="addRectNode" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Process Node">
+                <i class="far fa-square"></i>
+            </button>
+            <button id="addCircleNode" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Start/End Node">
+                <i class="far fa-circle"></i>
+            </button>
+            <button id="addDiamondNode" class="px-2.5 py-1 rounded-xl hover:bg-gray-200 transition" title="Decision Node">
+                <i class="fas fa-diamond fa-xs"></i>
             </button>
 
             <div class="w-[1px] h-6 bg-gray-400 mx-1 rounded-4xl"></div>
@@ -144,169 +579,353 @@
         <i id="customCursor" class="fas fa-location-arrow custom-cursor text-[#1a1a1a] opacity-100"></i>
     </div>
 
-    <div id="utility-bar" class="fixed top-0 w-full h-[5.5%] z-50 bg-[#121416] text-white text-center flex justify-between items-center px-4 text-xs font-inter font-normal tracking-wider">
+    <!-- Utility Bar -->
+    <div id="utility-bar" class="fixed top-0 w-full h-[5.5%] z-50 bg-[#121416] text-white text-center flex justify-between items-center px-4 text-xs font-inter font-normal tracking-wider transition-colors duration-300">
         <div class="flex items-center gap-1 whitespace-nowrap">
             <a href="/" class="cursor-pointer">
-                <span class="font-semibold">Whiteboard Pro</span>
+                <span class="font-semibold">Whiteflow</span>
             </a>
             <span class="opacity-70">| Board: Design Sprint 1</span>
         </div>
 
         <div class="flex-1 flex justify-center overflow-x-hideen no-scrollbar px-2">
-            <div class="opacity-80 whitespace-nowrap text-center">
+            <div id="save-status-text" class="opacity-80 whitespace-nowrap text-center">
                 Auto-Saved • Shared with 3 collaborators
             </div>
         </div>
 
         <div class="flex items-center gap-4 text-sm">
-            <i id="user-icon" class="fa-solid fa-user cursor-pointer"></i>
-
-            <i id="gear-icon" class="fa-solid fa-gear cursor-pointer hover:rotate-90 transition-transform duration-500"></i>
-
+            <div class="relative">
+                <i id="user-icon" class="fa-solid fa-user cursor-pointer hover:text-gray-300 transition-colors"></i>
+            </div>
+            <i id="gear-icon" class="fa-solid fa-gear cursor-pointer hover:rotate-90 transition-transform duration-500 text-md"></i>
             <div class="w-[1px] h-5 bg-gray-400 mx-1 rounded-4xl"></div>
-
-            <button class="rounded-lg px-2 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
-                <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                Share
-            </button>
-            <button
-                id="save-button"
-                class="bg-blue-700 rounded-lg px-2 py-1.5 text-xs cursor-pointer hover:bg-blue-900 transition-colors"
-            >
+            <div class="relative">
+                <button id="share-btn" class="rounded-xl px-3 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    Share
+                </button>
+            </div>
+            <button id="save-button" class="bg-blue-700 rounded-xl px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-900 transition-colors text-white">
                 Save
             </button>
         </div>
     </div>
     
-    <div id="save-popup" class="fixed top-[7%] right-[43.2%] lg:right-[46.6%] z-[51] bg-[#100C08] text-white text-sm flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow-lg animate-fade-in-out" style="display: none;">
-        <i class="fa-solid fa-check fa-sm bg-green-600 rounded-full w-full h-full px-1.5 py-2.5 text-xs leading-none"></i>
+    <div id="save-popup" class="fixed top-[7.5%] right-[43.2%] lg:right-[46.6%] z-[51] bg-[#100C08] text-white text-sm flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow-lg animate-fade-in-out" style="display: none;">
+        <i class="fa-solid fa-check fa-sm bg-green-600 rounded-full w-full h-full px-2 py-1.5 text-xs leading-none"></i>
         <span>Saved</span>
     </div>
 
+    <!-- CUSTOM ALERT POPUP -->
+    <div id="custom-alert" class="fixed top-[7.5%] left-1/2 -translate-x-1/2 z-[70] hidden items-center justify-center pointer-events-none">
+        <div class="bg-[#100C08] border border-[#222426] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 pointer-events-auto animate-bounce-in">
+            <div id="custom-alert-icon" class="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+                <i class="fa-solid fa-info"></i>
+            </div>
+            <div>
+                <h4 id="custom-alert-title" class="font-bold text-sm">Notification</h4>
+                <p id="custom-alert-msg" class="text-xs text-gray-400 mt-0.5">Message goes here.</p>
+            </div>
+            <button onclick="document.getElementById('custom-alert').classList.add('hidden'); document.getElementById('custom-alert').classList.remove('flex');" class="text-gray-500 hover:text-white ml-4">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- INPUT MODAL (Replacing Prompt) -->
+    <div id="input-modal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#100C08] border border-[#222426] w-80 rounded-2xl shadow-2xl p-5 animate-bounce-in">
+            <h3 id="input-modal-title" class="text-white font-bold text-sm mb-4">Enter Value</h3>
+            <input id="input-modal-field" type="text" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 mb-4" placeholder="...">
+            <div class="flex justify-end gap-2">
+                <button id="input-modal-cancel" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-400 hover:text-white hover:bg-[#222426] transition">Cancel</button>
+                <button id="input-modal-confirm" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHARE POPUP -->
+    <div id="share-popup" class="fixed top-[7.5%] right-5 z-[60] w-72 bg-[#100C08] border border-[#222426] rounded-2xl shadow-2xl hidden text-white">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-[#222426] popup-header bg-[#151313] rounded-t-xl">
+            <span class="font-semibold text-sm">Share Board</span>
+            <button id="close-share" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <p class="text-xs text-gray-400">Invite collaborators or copy the link.</p>
+            <div class="flex items-center gap-2">
+                <input type="text" value="https://whiteboard.pro/b/sprint-1" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-lg px-3 py-2 text-xs text-gray-300 outline-none" readonly>
+                <button id="share-copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-2 text-xs whitespace-nowrap transition-colors">
+                    Copy
+                </button>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+                <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold">JS</div>
+                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold">AL</div>
+                <button id="share-plus-btn" class="w-8 h-8 rounded-full bg-[#222426] border border-[#333] flex items-center justify-center text-gray-400 hover:text-white text-xs">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER POPUP -->
+    <div id="user-popup" class="fixed top-[7.5%] right-32 z-[60] w-64 bg-[#100C08] border border-[#222426] rounded-2xl shadow-2xl hidden text-white">
+        <div class="p-4 border-b border-[#222426] flex items-center gap-3 bg-[#151313] rounded-t-xl popup-header">
+            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">UL</div>
+            <div>
+                <div class="font-bold text-sm">User L</div>
+                <div class="text-xs text-gray-400">user@example.com</div>
+            </div>
+        </div>
+        <div class="py-2">
+            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+                <i class="fa-solid fa-user mr-2 w-4"></i> Profile
+            </button>
+            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+                <i class="fa-solid fa-gear mr-2 w-4"></i> Settings
+            </button>
+            <div class="border-t border-[#222426] my-1"></div>
+            <button class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#1a1b1d] transition-colors">
+                <i class="fa-solid fa-arrow-right-from-bracket mr-2 w-4"></i> Log Out
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div id="context-menu" class="fixed z-[9999] hidden w-48 bg-[#100C08] border border-[#222426] rounded-xl shadow-2xl py-1 text-white animate-bounce-in origin-top-left">
+        <!-- Items injected by JS -->
+    </div>
+
+
+    <!-- RIGHT SIDEBAR (Chat) -->
     <div id="sidebar-container">
         <button id="toggle-collapsed" class="w-full h-full flex items-center justify-center text-white rounded-full bg-[#100C08] hover:bg-[#1b1d20] transition-colors duration-150 cursor-pointer" style="display: flex;">
             <i class="fa-solid fa-comment fa-md"></i>
         </button>
 
         <div id="sidebar-expanded" class="flex flex-col h-full" style="display: none;">
-            
             <div class="flex items-center justify-between px-5 py-3 border-b border-[#1c1e20] bg-[#151313]">
-                <span class="font-semibold text-[0.95rem] tracking-wide">
-                    Meeting Chat
-                </span>
+                <span class="font-semibold text-[0.95rem] tracking-wide">Meeting Chat</span>
                 <button id="toggle-expanded" class="text-gray-400 cursor-pointer hover:text-white px-2 py-0.5 rounded-full hover:bg-[#2a2a2a] transition-all duration-150">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-
-            <div id="messages-container" class="flex-1 flex flex-col overflow-y-auto px-4 py-3 space-y-4 scroll-smooth custom-scroll">
-                </div>
-
+            <div id="messages-container" class="flex-1 flex flex-col overflow-y-auto px-4 py-3 space-y-4 scroll-smooth custom-scroll"></div>
             <div class="p-3 mt-auto bg-[#1a1b1d] border-t border-[#222426] flex items-center justify-between relative">
                 <div class="flex items-end justify-between bg-[#222426] border border-[#3a3d42] rounded-2xl w-full relative focus-within:ring-1 focus-within:ring-blue-500">
-
-                    <textarea
-                    id="message-input"
-                    oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px';"
-                    rows="1"
-                    placeholder="Type a message..."
-                    class="w-full px-4 pr-10 py-2 text-[11px] bg-transparent text-gray-200 focus:outline-none overflow-hidden transition-all placeholder-gray-500 resize-none"
-                    ></textarea>
-
-                    <button
-                    id="send-button"
-                    class="absolute bottom-1.5 right-1.5 text-sm flex justify-center items-center cursor-pointer bg-blue-500 hover:bg-blue-700 text-white rounded-full transition-all duration-200 shadow-sm w-8 h-5"
-                    >
-                    <i class="fa-solid fa-arrow-up fa-xs pl-0.5"></i>
+                    <textarea id="message-input" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px';" rows="1" placeholder="Type a message..." class="w-full px-4 pr-10 py-2 text-[11px] bg-transparent text-gray-200 focus:outline-none overflow-hidden transition-all placeholder-gray-500 resize-none"></textarea>
+                    <button id="send-button" class="absolute bottom-1.5 right-1.5 text-sm flex justify-center items-center cursor-pointer bg-blue-500 hover:bg-blue-700 text-white rounded-full transition-all duration-200 shadow-sm w-8 h-5">
+                        <i class="fa-solid fa-arrow-up fa-xs pl-0.5"></i>
                     </button>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <div id="settings-overlay" class="fixed inset-0 z-[52] flex items-center justify-center bg-black/50 backdrop-blur-sm" style="display: none;">
-        <div class="bg-gray-800 text-white rounded-xl p-8 shadow-2xl w-full max-w-md" onclick="event.stopPropagation()">
-            <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">App Settings</h2>
-            <p class="text-gray-400 mb-4">This is a placeholder for application configuration settings.</p>
-            <div class="space-y-3">
-                <label class="flex items-center justify-between">
-                    <span>Dark Mode:</span>
-                    <input type="checkbox" class="form-checkbox text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500">
-                </label>
-                <label class="flex items-center justify-between">
-                    <span>Notifications:</span>
-                    <input type="checkbox" checked class="form-checkbox text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500">
-                </label>
+    <!-- LEFT SIDEBAR (Tracker) -->
+    <div id="tracker-container">
+        <button id="tracker-toggle-collapsed" class="w-full h-full flex items-center justify-center text-white rounded-full bg-[#100C08] hover:bg-[#1b1d20] transition-colors duration-150 cursor-pointer" style="display: flex;">
+            <i class="fa-solid fa-layer-group fa-md"></i>
+        </button>
+
+        <div id="tracker-expanded" class="flex flex-col h-full" style="display: none;">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-[#1c1e20] bg-[#151313]">
+                <span class="font-semibold text-[0.95rem] tracking-wide">Board Tracker</span>
+                <button id="tracker-toggle-expanded" class="text-gray-400 cursor-pointer hover:text-white px-2 py-0.5 rounded-full hover:bg-[#2a2a2a] transition-all duration-150">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
-            <button onclick="window.toggleSettings(false)" class="mt-6 w-full py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Close</button>
-        </div>
-    </div>
-
-    <div id="account-overlay" class="fixed inset-0 z-[52] flex items-center justify-center bg-black/50 backdrop-blur-sm" style="display: none;">
-        <div class="bg-gray-800 text-white rounded-xl p-8 shadow-2xl w-full max-w-md" onclick="event.stopPropagation()">
-            <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">User Account</h2>
-            <div class="flex items-center space-x-4 mb-6">
-                <i class="fa-solid fa-user-circle fa-2xl text-blue-400"></i>
-                <div>
-                    <p class="font-semibold">Logged in as: User L</p>
-                    <p class="text-sm text-gray-400">user.l@whiteboard.com</p>
+            
+            <!-- Stats Header -->
+            <div class="grid grid-cols-3 gap-1 p-3 border-b border-[#222426] bg-[#1a1b1d] text-[10px] text-center">
+                <div class="flex flex-col">
+                    <span class="text-gray-400">Frames</span>
+                    <span id="tracker-count-frames" class="text-white font-bold text-lg">0</span>
+                </div>
+                <div class="flex flex-col border-l border-gray-700">
+                    <span class="text-gray-400">Notes</span>
+                    <span id="tracker-count-notes" class="text-white font-bold text-lg">0</span>
+                </div>
+                <div class="flex flex-col border-l border-gray-700">
+                    <span class="text-gray-400">Nodes</span>
+                    <span id="tracker-count-nodes" class="text-white font-bold text-lg">0</span>
                 </div>
             </div>
-            <p class="text-gray-400 mb-4">This is a placeholder for account details and profile management.</p>
-            <button onclick="window.toggleAccount(false)" class="mt-6 w-full py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Close</button>
+            
+            <!-- Add Folder Button -->
+            <div class="px-3 py-2 bg-[#151313] border-b border-[#222426]">
+                 <button id="add-folder-btn" class="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-[#222426] hover:bg-[#2a2a2a] text-xs text-gray-300 transition-colors border border-[#333]">
+                    <i class="fa-solid fa-folder-plus"></i> New Folder
+                </button>
+            </div>
+
+            <!-- List -->
+            <div id="tracker-list" class="flex-1 flex flex-col gap-1 overflow-y-auto px-2 py-2 space-y-1 scroll-smooth custom-scroll">
+                <!-- Tracker items injected here -->
+            </div>
         </div>
-        
     </div>
 
-<div id="pomodoro-container">
-    
-    <button id="pomodoro-toggle-collapsed" 
-             class="h-full w-full flex items-center justify-center gap-2 text-white 
-             rounded-lg bg-red-600 hover:bg-red-700 transition-colors duration-150 
-             cursor-pointer shadow-lg px-2 py-1.5" 
-             style="display: flex; white-space: nowrap;" 
-             title="Pomodoro Timer"> 
+    <!-- SETTINGS MODAL (Redesigned) -->
+    <div id="settings-modal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300" aria-hidden="true">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="settings-backdrop"></div>
         
-             <i class="fa-solid fa-stopwatch fa-xs"></i>
+        <!-- Modal Card -->
+        <div class="relative bg-[#100C08] border border-[#222426] rounded-[1.25rem] w-full max-w-md transform scale-95 transition-all duration-300 shadow-2xl overflow-hidden text-white" id="settings-card">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[#222426] bg-[#151313]">
+                <h2 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-gray-400"></i> Settings
+                </h2>
+                <button id="close-settings" class="text-gray-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#2a2a2a]">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6 space-y-6">
+                <!-- Appearance Section -->
+                <div class="space-y-3">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Appearance</label>
+                    
+                    <div class="flex items-center justify-between p-4 rounded-xl bg-[#1a1b1d] border border-[#222426]">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-[#222426] flex items-center justify-center text-blue-400">
+                                <i class="fa-solid fa-moon"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold">Dark Mode</div>
+                                <div class="text-xs text-gray-400">Adjust the interface theme</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Modern Toggle Switch -->
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Preferences Section -->
+                <div class="space-y-3">
+                     <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Preferences</label>
+                     
+                     <div class="flex items-center justify-between p-4 rounded-xl bg-[#1a1b1d] border border-[#222426]">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-[#222426] flex items-center justify-center text-green-400">
+                                <i class="fa-solid fa-bell"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold">Notifications</div>
+                                <div class="text-xs text-gray-400">Receive updates & alerts</div>
+                            </div>
+                        </div>
+                        
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 bg-[#151313] border-t border-[#222426] text-center">
+                <p class="text-[10px] text-gray-500">Infinite Whiteboard v2.1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- POMODORO TIMER -->
+    <div id="pomodoro-container">
+        <!-- Collapsed State -->
+        <button id="pomodoro-toggle-collapsed" class="h-full w-full flex items-center justify-center gap-3 text-gray-200 rounded-2xl bg-[#100C08] hover:bg-[#1b1d20] hover:text-white border border-[#222426] transition-all duration-300 cursor-pointer shadow-lg px-4" style="display: flex; white-space: nowrap;" title="Open Timer"> 
+             <i id="collapsed-state-icon" class="fa-solid fa-stopwatch text-red-500"></i>
              <span id="collapsed-timer-display" class="text-sm font-semibold tracking-wider">25:00</span>
-    </button>
+        </button>
 
-<div id="pomodoro-expanded" class="flex flex-col w-full h-full rounded-xl shadow-2xl backdrop-blur-md bg-gray-800/90 text-white overflow-hidden transition-all duration-500 ease-in-out" style="display: none;">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-900">
-            <span class="font-semibold text-base tracking-wide flex items-center gap-2">
-                <i class="fa-solid fa-tomato text-red-500"></i>
-                Pomodoro Timer
-            </span>
-            <button id="pomodoro-toggle-expanded" class="text-gray-400 cursor-pointer hover:text-white px-2 py-0.5 rounded-full hover:bg-gray-700 transition-all duration-150">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <div class="p-5 flex flex-col items-center flex-1 justify-center"> <div id="timer-display" class="text-6xl font-extrabold mb-4 font-inter tracking-tight">25:00</div>
-            
-            <div id="timer-phase" class="text-sm font-medium text-red-400 mb-6 uppercase tracking-widest">Focus Time</div>
-            
-            <div class="flex gap-4">
-                <button id="pomodoro-start-stop" class="w-12 h-12 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors shadow-lg" title="Start Timer">
-                    <i class="fa-solid fa-play fa-lg"></i>
-                </button>
-                <button id="pomodoro-reset" class="w-12 h-12 bg-gray-600 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors shadow-lg" title="Reset Timer">
-                    <i class="fa-solid fa-rotate-right"></i>
+        <!-- Expanded State -->
+        <div id="pomodoro-expanded" class="flex flex-col w-full h-full text-white overflow-hidden transition-all duration-500 ease-in-out opacity-0" style="display: none;">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-[#1c1e20] bg-[#151313] flex-shrink-0">
+                <span class="font-semibold text-[0.95rem] tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-tomato text-red-500"></i>
+                    Pomodoro
+                </span>
+                <button id="pomodoro-toggle-expanded" class="text-gray-400 cursor-pointer hover:text-white px-2 py-0.5 rounded-full hover:bg-[#2a2a2a] transition-all duration-150">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            
-            <div class="mt-5 text-xs text-gray-400">
-                Pomodoros Completed: <span id="pomodoro-count" class="font-bold text-white">0</span>
+
+            <!-- Content Area (Flex Grow) -->
+            <div class="relative flex-1 w-full overflow-hidden bg-[#100C08]">
+                
+                <!-- Timer View -->
+                <div id="timer-view" class="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300">
+                    <div id="timer-display" class="text-7xl font-bold mb-2 font-inter tracking-tighter text-gray-100">25:00</div>
+                    <div id="timer-phase" class="text-xs font-bold text-red-400 mb-6 uppercase tracking-[0.2em]">Focus Phase</div>
+                    
+                    <div class="flex items-center gap-2 text-xs text-gray-500 bg-[#1a1b1d] px-3 py-1 rounded-full border border-[#222426]">
+                        <i class="fa-solid fa-check-circle fa-xs text-green-500"></i>
+                        <span>Completed:</span>
+                        <span id="pomodoro-count" class="font-bold text-gray-200">0</span>
+                    </div>
+                </div>
+
+                <!-- Game View (Hidden by default) -->
+                <div id="game-view" class="absolute inset-0 flex flex-col items-center justify-center hidden bg-[#100C08] z-10">
+                     <!-- Game Selector (Scrollable Horizontal List) -->
+                     <div id="game-selector" class="flex flex-row items-center gap-3 overflow-x-auto p-4 w-full h-full custom-scroll snap-x">
+                        <!-- Buttons injected by JS -->
+                     </div>
+                     
+                     <!-- Active Game Container -->
+                     <div id="active-game-container" class="w-full h-full hidden flex-col items-center justify-center p-2"></div>
+
+                     <!-- Internal Back Button (Top Left of game area) -->
+                     <button id="back-to-games-btn" class="absolute top-3 left-3 text-xs text-gray-400 hover:text-white hidden flex items-center gap-1 bg-[#1a1b1d] px-2 py-1 rounded-md border border-[#222426]">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                     </button>
+                </div>
+
+            </div>
+
+            <!-- Controls Footer (Always Visible) -->
+            <div class="p-5 bg-[#151313] border-t border-[#1c1e20] flex justify-center items-center gap-6 z-20 flex-shrink-0">
+                <button id="pomodoro-reset" class="w-10 h-10 bg-[#222426] text-gray-400 hover:bg-[#2a2a2a] hover:text-white rounded-full flex items-center justify-center transition-all shadow-md" title="Reset">
+                    <i class="fa-solid fa-rotate-right fa-sm"></i>
+                </button>
+
+                <button id="pomodoro-start-stop" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center transition-all shadow-lg shadow-white/10" title="Start/Pause">
+                    <i class="fa-solid fa-play fa-lg ml-1"></i>
+                </button>
+                
+                <button id="pomodoro-games-toggle" class="w-10 h-10 bg-[#222426] text-indigo-400 hover:bg-indigo-900/30 hover:text-indigo-300 rounded-full flex items-center justify-center transition-all shadow-md" title="Mini-Games">
+                    <i class="fa-solid fa-gamepad fa-sm"></i>
+                </button>
             </div>
         </div>
     </div>
-</div>
-
     
-    <script src="../javascript/board.js"></script>
-    <script src="../javascript/chat.js"></script>
-    <script src="../javascript/pomodoro.js"></script>
-
-    </body>
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Scripts loaded as modules or normally. Absolute path handles routing. -->
+    <script src="/javascript/games.js"></script>
+    <script src="/javascript/board.js"></script>
+    <script src="/javascript/chat.js"></script>
+    <script src="/javascript/pomodoro.js"></script>
+    
+    <!-- Ensure board inits if script didn't auto-run -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof io !== 'undefined' && window.initBoard) {
+                 window.initBoard();
+             } else {
+                 console.error('Socket.io or initBoard not found');
+             }
+        });
+    </script>
+</body>
 </html>

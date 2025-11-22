@@ -1,10 +1,10 @@
-// javascript/navbar.js
 
 window.initNavbar = function () {
     const navItems = document.querySelectorAll(".nav-item");
     const navHighlight = document.getElementById("navHighlight");
     const mobileToggle = document.getElementById("mobileToggle");
     const mobileMenu = document.getElementById("mobileMenu");
+    const navbar = document.getElementById("mainNavbar");
 
     let activeIndex = -1;
 
@@ -85,8 +85,6 @@ window.initNavbar = function () {
     navItems.forEach((item, i) => {
         item.addEventListener("click", () => {
             // The router handles the page change, we just ensure the visual state is updated
-            // It's technically redundant as the router will call setActiveNavState after navigation, 
-            // but keeps the activeIndex variable correct for hover logic.
             activeIndex = i; 
         });
 
@@ -124,5 +122,20 @@ window.initNavbar = function () {
                 mobileToggle.innerHTML = '<i class="fa-solid fa-bars"></i>';
             });
         });
+    }
+
+    // 6. Scroll Effect (Blur)
+    if (navbar) {
+        const handleScroll = () => {
+            if (window.scrollY > 10) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        };
+        
+        window.addEventListener('scroll', handleScroll);
+        // Initialize correct state on load
+        handleScroll();
     }
 }

@@ -1,26 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Navbar</title>
-  <link rel="stylesheet" href="../css/navbar.css" />
-  <script src="https://kit.fontawesome.com/605a1488ff.js" crossorigin="anonymous"></script>
-</head>
-<body>
-<nav class="navbar">
-  <div class="nav-container">
-    <!-- Desktop brand -->
-    <a href="./" class="nav-brand desktop-brand">
-      <i class="fa-solid fa-note-sticky"></i>
-      WhiteFlow
+
+<style>
+  /* Navbar Base Transition & Positioning */
+  .navbar {
+    transition: all 0.3s ease-in-out;
+    position: fixed; /* Ensure it stays at the top */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: transparent;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Scrolled State - Glassmorphism */
+  .navbar.scrolled {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  /* Optional: Dark mode support adjustment */
+  body.dark-mode .navbar.scrolled {
+    background: rgba(30, 30, 30, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+</style>
+
+<nav class="navbar" id="mainNavbar">
+  <div class="nav-content">
+    <!-- Desktop Brand -->
+    <a href="./" class="nav-brand desktop-brand font-inter">
+      <!-- Simple SVG Logo -->
+      <i class="fa-solid fa-shapes text-xs bg-[#333] px-2.5 py-1.5 text-white rounded-lg"></i>
+
+      <span class="brand-name">Whiteflow</span>
     </a>
 
-    <!-- Mobile top row wrapper -->
+    <!-- Mobile Top Row -->
     <div class="mobile-top-row">
-      <a href="./" class="nav-brand">
-        <i class="fa-solid fa-note-sticky"></i>
-        WhiteFlow
+      <a href="./" class="nav-brand font-inter">
+        <i class="fa-solid fa-shapes text-xs bg-[#333] px-2.5 py-1.5 text-white rounded-lg"></i>
+        <span class="brand-name">Whiteflow</span>
       </a>
       
       <button class="mobile-toggle" id="mobileToggle">
@@ -28,34 +53,27 @@
       </button>
     </div>
 
-    <!-- Desktop nav items -->
+    <!-- Desktop Nav Items -->
     <div class="nav-links" id="navLinks">
       <span class="nav-highlight" id="navHighlight"></span>
       <a href="./room" class="nav-item">Room</a>
       <a href="./board" class="nav-item">Board</a>
-      <a href="./chat" class="nav-item">Chat</a>
     </div>
 
-    <!-- Desktop auth buttons -->
+    <!-- Desktop Auth Buttons -->
     <div class="auth-buttons" id="authButtons">
       <a href="/logout" class="signup-btn">
         <i class="fa-solid fa-right-from-bracket"></i> Logout
       </a>
     </div>
+  </div>
 
-    <!-- Mobile menu -->
-    <div class="mobile-menu" id="mobileMenu">
-      <a href="./room" class="mobile-item">Room</a>
-      <a href="./board" class="mobile-item">Board</a>
-      <a href="./chat" class="mobile-item">Chat</a>
-      <a href="/logout" class="mobile-item solid">
-        <i class="fa-solid fa-right-from-bracket"></i> Logout
-      </a>
-    </div>
-  </div> 
+  <!-- Mobile Menu (Full Width) -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="./room" class="mobile-item">Room</a>
+    <a href="./board" class="mobile-item">Board</a>
+    <a href="/logout" class="mobile-item solid">
+      <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </a>
+  </div>
 </nav>
-
-<script src="../javascript/navbar.js"></script>
-<script>window.initNavbar();</script>
-</body>
-</html>
