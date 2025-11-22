@@ -2236,7 +2236,7 @@ window.initBoard = function() {
         
         for(let i=1; i<=sprintCount; i++) {
             const sprintItem = document.createElement('div');
-            sprintItem.className = 'sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 flex items-center gap-2 transition-colors';
+            sprintItem.className = 'sticky-dropdown-item px-3 py-1.5 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex items-center gap-2 transition-colors';
             sprintItem.innerText = `Sprint ${i}`;
             sprintItem.onclick = (e) => {
                 e.stopPropagation();
@@ -2247,7 +2247,7 @@ window.initBoard = function() {
         
         // Clear Sprint Option
         const clearItem = document.createElement('div');
-        clearItem.className = 'sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 flex items-center gap-2 transition-colors text-gray-400 hover:text-red-400';
+        clearItem.className = 'sticky-dropdown-item px-3 py-1.5 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex items-center gap-2 transition-colors text-gray-400 hover:text-red-400';
         clearItem.innerText = 'Clear Sprint';
         clearItem.onclick = (e) => {
             e.stopPropagation();
