@@ -178,7 +178,7 @@ window.initPomodoro = function() {
         const expandedTop = '7.5%';
         const expandedWidth = '320px'; // 20rem
         const expandedHeight = '380px'; 
-        const expandedBorderRadius = '1rem'; 
+        const expandedBorderRadius = '1.2rem'; 
         
         const gameWidth = '450px';
         const gameHeight = '550px';

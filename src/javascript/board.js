@@ -2172,7 +2172,7 @@ window.initBoard = function() {
             
             const addItem = (text, icon, onClick) => {
                 const item = document.createElement('div');
-                item.className = 'context-menu-item px-4 py-2 text-sm cursor-pointer hover:bg-[#222426] flex items-center gap-3 transition-colors';
+                item.className = 'context-menu-item px-4 py-2 text-sm cursor-pointer hover:bg-[#222426] rounded-lg mx-1.5 my-1 flex items-center gap-3 transition-colors';
                 item.innerHTML = `<i class="${icon} text-gray-400 w-4"></i> ${text}`;
                 item.onclick = (ev) => {
                     ev.stopPropagation();

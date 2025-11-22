@@ -1,3 +1,4 @@
+
 // Load partial HTML into a container
 async function loadHTML(path, containerId) {
     const container = document.getElementById(containerId);
@@ -59,7 +60,7 @@ async function navigate(path) {
     const pageContainer = document.getElementById("page-content");
     const navbarContainer = document.getElementById("navbar-container");
 
-    // Normalize path (remove base and trailing slash)
+    // Normalize path
     path = normalizePath(path);
     console.log("Navigating to:", path);
 
@@ -72,32 +73,47 @@ async function navigate(path) {
         return;
     }
 
-    console.log("Loading route:", route);
+    // --- Navigation Cleanup & Reset ---
+    
+    // 1. Clean up homepage scroll listener
+    if (window.homepageScrollListener) {
+        window.removeEventListener('scroll', window.homepageScrollListener);
+        window.homepageScrollListener = null;
+        console.log("Cleanup: Removed homepage scroll listener");
+    }
 
-    // Show/Hide Navbar 
+    // 2. Reset Navbar Appearance
+    const navbar = document.getElementById('mainNavbar');
+    if (navbar) {
+        navbar.classList.remove('navbar-blur');
+        console.log("Cleanup: Reset navbar blur state");
+    }
+
+    // 3. Reset scroll position to top
+    window.scrollTo(0, 0);
+
+    console.log("Loading route content:", route);
+
+    // Show/Hide Navbar based on route
     if (navbarContainer) {
-        // HIDE navbar for specific pages including /room and /chat
+        // HIDE navbar for specific pages
         if (path === "/board" || path === "/chat" || path === "/login" || path === "/signin") {
             navbarContainer.style.display = 'none';
-            console.log("Navbar hidden for:", path);
         } else {
-            // Show navbar for all other pages
             navbarContainer.style.display = '';
-            console.log("Navbar shown.");
         }
     }
 
     // Load the HTML
     await loadHTML(route, "page-content");
 
-    // Call navbar state updater
+    // Update Navbar Active State
     if (window.setActiveNavState) window.setActiveNavState();
 
     // ----------------------------------------------------------------------
     // --- LOAD ROUTE-SPECIFIC JS ---
     // ----------------------------------------------------------------------
 
-    // Function to load a script safely
     const loadScript = (src) => {
         return new Promise((resolve, reject) => {
             let script = document.querySelector(`script[src="${src}"]`);
@@ -113,7 +129,7 @@ async function navigate(path) {
         });
     };
 
-    // --- HOMEPAGE ROUTE (/ or /home) ---
+    // --- HOMEPAGE ROUTE ---
     if (path === "/" || path === "/home") {
         try {
             await loadScript("javascript/homepage.js");
@@ -123,29 +139,26 @@ async function navigate(path) {
         }
     }
 
-    // --- BOARD ROUTE (/board) ---
+    // --- BOARD ROUTE ---
     else if (path === "/board") {
         try {
-            // Load dependencies sequentially or in parallel
             await loadScript("javascript/games.js");
             await loadScript("javascript/board.js");
             await loadScript("javascript/chat.js");
             await loadScript("javascript/pomodoro.js");
 
-            // Initialize functionality
             setTimeout(() => {
                 if (window.initGames) window.initGames();
                 if (window.initBoard) window.initBoard();
                 if (window.initChat) window.initChat();
                 if (window.initPomodoro) window.initPomodoro();
             }, 50);
-
         } catch (err) {
             console.error("Failed to load board scripts:", err);
         }
     } 
     
-    // --- LOGIN ROUTE (/login) ---
+    // --- AUTH ROUTES ---
     else if (path === "/login") {
         try {
              if (!window.loginInitialized) {
@@ -157,12 +170,8 @@ async function navigate(path) {
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
              }
-        } catch (err) {
-            console.error("Failed to load login script:", err);
-        }
+        } catch (err) { console.error(err); }
     } 
-    
-    // --- SIGNIN ROUTE (/signin) --- 
     else if (path === "/signin") {
         try {
             if (!window.signinInitialized) {
@@ -174,12 +183,10 @@ async function navigate(path) {
                 const event = new Event('DOMContentLoaded');
                 document.dispatchEvent(event);
             }
-        } catch (err) {
-            console.error("Failed to load signin script:", err);
-        }
+        } catch (err) { console.error(err); }
     }
     
-    // --- ROOM ROUTE (/room) ---
+    // --- ROOM ROUTE ---
     else if (path === "/room") { 
         try {
             if (!window.roomInitialized) {
@@ -188,9 +195,7 @@ async function navigate(path) {
                 await loadScript("javascript/room.js"); 
                 window.roomInitialized = true;
             }
-        } catch (err) {
-            console.error("Failed to load room script:", err);
-        }
+        } catch (err) { console.error(err); }
     }
 }
 
@@ -198,13 +203,15 @@ async function navigate(path) {
 async function initApp() {
     console.log("Initializing app...");
 
-    // --- Inject Socket.IO Client dynamically ---
-    // This ensures the socket.io client library is available for all pages (board, chat, room)
-    const socketScript = document.createElement('script');
-    socketScript.src = '/socket.io/socket.io.js'; // Served automatically by socket.io server
-    document.head.appendChild(socketScript);
+    // --- Inject Socket.IO Client ---
+    if (!document.querySelector('script[src="/socket.io/socket.io.js"]')) {
+        const socketScript = document.createElement('script');
+        socketScript.src = '/socket.io/socket.io.js';
+        document.head.appendChild(socketScript);
+    }
 
-    // --- Load the Navbar ---
+    // --- Load the Navbar First ---
+    // We await this to ensure the DOM element #mainNavbar exists before routing to homepage
     await loadHTML("components/navbar.html", "navbar-container");
 
     // Load navbar JS
@@ -218,7 +225,7 @@ async function initApp() {
 
     if (window.initNavbar) window.initNavbar();
 
-    // --- Initial route (based on current URL) ---
+    // --- Initial route ---
     const initialPath = window.location.pathname;
     
     if (initialPath.endsWith('mainapp.html') || initialPath.endsWith('index.html')) {
@@ -228,7 +235,7 @@ async function initApp() {
         await navigate(initialPath);
     }
 
-    // --- Handle link clicks (intercept) ---
+    // --- Handle link clicks ---
     document.body.addEventListener("click", (e) => {
         const link = e.target.closest("a[href]");
         if (!link) return;
@@ -248,7 +255,7 @@ async function initApp() {
         }
     });
 
-    // --- Handle browser navigation (back/forward) ---
+    // --- Handle browser navigation ---
     window.addEventListener("popstate", () => {
         navigate(window.location.pathname);
     });
@@ -256,7 +263,7 @@ async function initApp() {
     console.log("App initialized successfully");
 }
 
-// --- Boot up the app ---
+// --- Boot up ---
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
