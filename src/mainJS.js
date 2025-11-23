@@ -89,7 +89,12 @@ async function navigate(path) {
         console.log("Cleanup: Reset navbar blur state");
     }
 
-    // 3. Reset scroll position to top
+    // 3. CLEANUP ROOM JS (Prevent duplicate listeners)
+    if (window.cleanupRoom) {
+        window.cleanupRoom();
+    }
+
+    // 4. Reset scroll position to top
     window.scrollTo(0, 0);
 
     console.log("Loading route content:", route);
@@ -189,11 +194,13 @@ async function navigate(path) {
     // --- ROOM ROUTE ---
     else if (path === "/room") { 
         try {
-            if (!window.roomInitialized) {
-                const old = document.querySelector('script[src*="room.js"]');
-                if(old) old.remove();
-                await loadScript("javascript/room.js"); 
-                window.roomInitialized = true;
+            // Ensure script is loaded
+            await loadScript("javascript/room.js"); 
+            
+            // ALWAYS initialize when entering this route
+            // This re-selects the new DOM elements and attaches listeners
+            if (window.initRoom) {
+                window.initRoom();
             }
         } catch (err) { console.error(err); }
     }

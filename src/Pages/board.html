@@ -37,7 +37,9 @@
         body.light-mode #input-modal > div,
         body.light-mode #context-menu,
         body.light-mode #history-tracker,
-        body.light-mode #history-tooltip {
+        body.light-mode #history-tooltip,
+        body.light-mode .sticky-dropdown,
+        body.light-mode .sticky-submenu {
             background-color: #FFFFFF !important;
             border: 1px solid #D1D5DB !important; /* Distinct light border */
             color: #1F2937 !important; /* gray-800 */
@@ -48,6 +50,10 @@
         body.light-mode .context-menu-item:hover,
         body.light-mode .history-dot:hover {
             background-color: #F3F4F6 !important;
+        }
+        
+        body.light-mode .sticky-dropdown-divider {
+            border-color: #E5E7EB !important;
         }
 
         /* --- Headers (Chat & Tracker) --- */
@@ -210,6 +216,56 @@
         body.light-mode .text-gray-200 { color: #374151 !important; }
         body.light-mode .text-gray-100 { color: #111827 !important; }
 
+        /* --- Sticky Note Dropdown Styles --- */
+        .sticky-dropdown, .sticky-submenu {
+            background-color: #100C08;
+            border: 1px solid #222426;
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Hover Item Blue Background */
+        .sticky-dropdown-item:hover {
+            background-color: #124dca; /* Blue 600 */
+        }
+        /* Light mode hover blue background */
+        body.light-mode .sticky-dropdown-item:hover {
+            background-color: #dbeafe !important; /* Blue 100 */
+        }
+        
+        .sticky-dropdown-divider {
+            border-color: #222426;
+        }
+        
+        /* Dropdown Separator for List Items */
+        .dropdown-separator {
+            border-bottom: 1px solid #222426;
+        }
+        .dropdown-separator:last-child {
+            border-bottom: none;
+        }
+        body.light-mode .dropdown-separator {
+            border-color: #E5E7EB;
+        }
+        
+        /* Submenu specifics */
+        .sticky-submenu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            margin-left: 0.5rem;
+            width: 9rem;
+            border-radius: 0.75rem;
+            padding: 0.25rem 0;
+            z-index: 70;
+            display: none; /* Hidden by default */
+        }
+        /* Show on parent hover */
+        .sticky-dropdown-item.has-submenu:hover .sticky-submenu,
+        .sticky-submenu:hover {
+            display: flex;
+        }
+
         
         /* Custom Bounce-in Animation for Messages */
         @keyframes bounceIn {
@@ -334,9 +390,7 @@
             flex-shrink: 0;
         }
         
-        .history-dot:hover {
-            transform: scale(1.2);
-        }
+        
 
         /* Tooltip for History - Fixed positioning */
         #history-tooltip {
@@ -693,7 +747,7 @@
     </div>
 
     <!-- CONTEXT MENU -->
-    <div id="context-menu" class="fixed z-[9999] hidden w-48 bg-[#100C08] border border-[#222426] rounded-xl shadow-2xl py-1 text-white animate-bounce-in origin-top-left">
+    <div id="context-menu" class="sticky-dropdown fixed z-[9999] hidden w-64 rounded-2xl shadow-2xl py-2 animate-bounce-in origin-top-left">
         <!-- Items injected by JS -->
     </div>
 

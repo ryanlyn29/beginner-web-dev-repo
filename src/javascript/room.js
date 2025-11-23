@@ -1,35 +1,55 @@
 const socket = io();
 
-// Define UI elements once the script loads (assuming room.html content is in the DOM)
-const actionSelection = document.getElementById('action-selection');
-const createRoomForm = document.getElementById('create-room-form');
-const joinRoomForm = document.getElementById('join-room-form');
-const titleText = document.getElementById('title-text');
-const descriptionText = document.getElementById('description-text');
-const backButtons = document.querySelectorAll('.back-to-selection');
+/**
+ * room.js - SPA Adapted
+ * Handles UI logic for Room Creation/Joining.
+ * Wrapped in init/cleanup functions to support page navigation.
+ */
 
-/**Hides all main content sections (forms and selection screen).*/
-function hideAll() {
-    if (actionSelection) actionSelection.style.display = 'none';
-    if (createRoomForm) createRoomForm.style.display = 'none';
-    if (joinRoomForm) joinRoomForm.style.display = 'none';
-}
+let roomAbortController = null; // Used to clean up event listeners automatically
 
-/** Shows the Create Room form and updates the page headers.*/
-window.showCreateRoom = function () {
-    hideAll();
-    if (createRoomForm) createRoomForm.style.display = 'flex';
-    if (titleText) titleText.textContent = 'Create Your Room';
-    if (descriptionText) descriptionText.textContent = 'Enter a name and an optional custom code to start a new collaborative session.';
-};
+window.initRoom = function() {
+    console.log("Initializing Room Page Logic...");
 
-/** Shows the Join Room form and updates the page headers.*/
-window.showJoinRoom = function () {
-    hideAll();
-    if (joinRoomForm) joinRoomForm.style.display = 'flex';
-    if (titleText) titleText.textContent = 'Join a Room';
-    if (descriptionText) descriptionText.textContent = 'Enter the unique room code provided by the host to join an existing session.';
-};
+    // 1. Select DOM Elements (Freshly selected every time the page loads)
+    const actionSelection = document.getElementById('action-selection');
+    const createRoomForm = document.getElementById('create-room-form');
+    const joinRoomForm = document.getElementById('join-room-form');
+    const titleText = document.getElementById('title-text');
+    const descriptionText = document.getElementById('description-text');
+    const backButtons = document.querySelectorAll('.back-to-selection');
+    const roomNameInput = document.getElementById('room-name');
+    const customCodeInput = document.getElementById('custom-code');
+    const roomCodeInput = document.getElementById('room-code');
+
+    // Initialize AbortController for easy event cleanup
+    if (roomAbortController) roomAbortController.abort();
+    roomAbortController = new AbortController();
+    const signal = { signal: roomAbortController.signal };
+
+    // 2. Define UI Helper Functions
+    
+    function hideAll() {
+        if (actionSelection) actionSelection.style.display = 'none';
+        if (createRoomForm) createRoomForm.style.display = 'none';
+        if (joinRoomForm) joinRoomForm.style.display = 'none';
+    }
+
+    // Expose these to window so inline HTML onclick attributes (if any) still work,
+    // or simply for external control.
+    window.showCreateRoom = function () {
+        hideAll();
+        if (createRoomForm) createRoomForm.style.display = 'flex';
+        if (titleText) titleText.textContent = 'Create Your Room';
+        if (descriptionText) descriptionText.textContent = 'Enter a name and an optional custom code to start a new collaborative session.';
+    };
+
+    window.showJoinRoom = function () {
+        hideAll();
+        if (joinRoomForm) joinRoomForm.style.display = 'flex';
+        if (titleText) titleText.textContent = 'Join a Room';
+        if (descriptionText) descriptionText.textContent = 'Enter the unique room code provided by the host to join an existing session.';
+    };
 
 /**Resets the page view to the initial action selection screen.*/
 window.resetPage = function () {
@@ -55,7 +75,7 @@ socket.on('roomError', (message) => {
     alert(`Error: ${message}`);
 });
 
-// --- Form Submission Handlers ---
+    // 3. Attach Event Listeners (using signal for easy cleanup)
 
 // Listen for form submissions (must be done after the script loads)
 if (createRoomForm) {
@@ -80,13 +100,34 @@ if (joinRoomForm) {
     });
 }
 
-// --- Event Listeners for Back Buttons ---
+    // Back Buttons Handler
+    backButtons.forEach(button => {
+        button.addEventListener('click', window.resetPage, signal);
+    });
 
-// Use a loop for any button with the class 'back-to-selection'
-backButtons.forEach(button => {
-    button.addEventListener('click', window.resetPage);
-});
+    // Initialize view
+    window.resetPage();
+};
 
+/**
+ * Cleans up event listeners and resets global state when leaving the room page.
+ */
+window.cleanupRoom = function() {
+    console.log("Cleaning up Room Page Logic...");
+    
+    // Remove event listeners
+    if (roomAbortController) {
+        roomAbortController.abort();
+        roomAbortController = null;
+    }
 
-window.resetPage();
+    // Optional: Nullify DOM references to prevent memory leaks
+    window.showCreateRoom = null;
+    window.showJoinRoom = null;
+    window.resetPage = null;
+};
 
+// Check if script was loaded after DOM ready (hot reload/direct navigation)
+if (document.getElementById('action-selection')) {
+    window.initRoom();
+}

@@ -243,7 +243,7 @@ window.initBoard = function() {
             } else if (data.type === 'ADD') {
                 if (data.elementType === 'note') {
                     if(!document.querySelector(`[data-id="${data.data.id}"]`))
-                        addStickyNote(workspace, data.data.id, data.data.content, data.data.x, data.data.y, data.data.sprint);
+                        addStickyNote(workspace, data.data.id, data.data.content, data.data.x, data.data.y, data.data.sprint, data.data.color);
                 } else if (data.elementType === 'frame') {
                     if(!frames.find(f => f.id == data.data.id))
                         createFrame(data.data.x, data.data.y, data.data.w, data.data.h, data.data.title, data.data.id);
@@ -257,11 +257,122 @@ window.initBoard = function() {
             } else if (data.type === 'DELETE') {
                 const el = document.querySelector(`[data-id="${data.id}"]`);
                 if (el) {
-                    deleteElement({ id: data.id, type: data.elementType, el: el });
+                    deleteElement({ id: data.id, type: data.elementType, el: el }, true);
                 }
             } else if (data.type === 'ADD_EDGE') {
                  if(!edges.find(e => e.id == data.edge.id))
                     createEdge(data.edge.sourceNodeId, data.edge.sourceHandle, data.edge.targetNodeId, data.edge.targetHandle, data.edge.id);
+            } 
+            // Sprint List Specific Updates
+            else if (data.type === 'TASK_UPDATE') {
+                const list = sprintLists.find(l => l.id == data.listId);
+                if (list && list.items[data.taskIdx]) {
+                    list.items[data.taskIdx].completed = data.completed;
+                    const listEl = document.querySelector(`.sprint-list[data-id="${data.listId}"]`);
+                    if(listEl) {
+                        const checkDiv = listEl.querySelector(`.task-item[data-idx="${data.taskIdx}"] .check-trigger`);
+                        const input = listEl.querySelector(`.task-item[data-idx="${data.taskIdx}"] input`);
+                        
+                        if(checkDiv && input) {
+                            const isChecked = data.completed;
+                            if(isChecked) {
+                                checkDiv.className = 'w-5 h-5 bg-indigo-500 rounded-[6px] flex items-center justify-center shrink-0 transition-transform check-trigger';
+                                checkDiv.innerHTML = '<i class="fa-solid fa-check text-white text-[10px]" style="stroke-width: 3px;"></i>';
+                                input.classList.add('text-gray-400', 'line-through', 'decoration-gray-200');
+                                input.classList.remove('text-gray-700');
+                            } else {
+                                checkDiv.className = 'w-5 h-5 bg-white border-[1.5px] border-gray-300 rounded-[6px] flex items-center justify-center shrink-0 transition-transform check-trigger';
+                                checkDiv.innerHTML = '';
+                                input.classList.remove('text-gray-400', 'line-through', 'decoration-gray-200');
+                                input.classList.add('text-gray-700');
+                            }
+                        }
+                    }
+                }
+            } else if (data.type === 'TASK_EDIT') {
+                const list = sprintLists.find(l => l.id == data.listId);
+                if (list && list.items[data.taskIdx]) {
+                    list.items[data.taskIdx].text = data.text;
+                    const input = document.querySelector(`.sprint-list[data-id="${data.listId}"] .task-item[data-idx="${data.taskIdx}"] input`);
+                    if(input) input.value = data.text;
+                }
+            } else if (data.type === 'TASK_ADD') {
+                const list = sprintLists.find(l => l.id == data.listId);
+                if (list) {
+                    list.items.push(data.newItem);
+                    // Fully re-render list container to show new item
+                    const listEl = document.querySelector(`.sprint-list[data-id="${data.listId}"]`);
+                    if(listEl) {
+                        const x = listEl.style.left;
+                        const y = listEl.style.top;
+                        listEl.remove();
+                        addSprintList(parseFloat(x), parseFloat(y), data.listId, list);
+                    }
+                }
+            } else if (data.type === 'NOTE_EDIT') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el) {
+                    const textarea = el.querySelector('textarea');
+                    if (textarea) textarea.value = data.content;
+                }
+            } else if (data.type === 'NOTE_UPDATE') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el) {
+                    if (data.color) {
+                        el.dataset.color = data.color;
+                    }
+                    if (data.sprint !== undefined) {
+                         if (data.sprint) {
+                             el.dataset.sprint = data.sprint;
+                         } else {
+                             delete el.dataset.sprint;
+                         }
+                         
+                         // SYNC: Find sprint tag by class
+                         const sprintTag = el.querySelector('.sprint-tag');
+                         if (sprintTag) {
+                             if (data.sprint) {
+                                 sprintTag.innerText = `#${data.sprint}`;
+                                 sprintTag.classList.remove('hidden');
+                             } else {
+                                 sprintTag.classList.add('hidden');
+                             }
+                         }
+                    }
+                    updateTracker();
+                }
+            } else if (data.type === 'NODE_EDIT') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el) {
+                    const span = el.querySelector('span');
+                    if (span) span.innerText = data.text;
+                }
+            } else if (data.type === 'RESIZE') {
+                const el = document.querySelector(`[data-id="${data.id}"]`);
+                if (el && data.elementType === 'frame') {
+                    el.style.width = data.w + 'px';
+                    el.style.height = data.h + 'px';
+                    // Update frame data array
+                    const frameData = frames.find(f => f.id == data.id);
+                    if(frameData) {
+                        frameData.width = data.w;
+                        frameData.height = data.h;
+                    }
+                    
+                    // Sync Canvas
+                    const canvas = el.querySelector('canvas');
+                    if (canvas && data.image) {
+                        const ctx = canvas.getContext('2d');
+                        const img = new Image();
+                        img.onload = () => {
+                            canvas.width = data.w;
+                            canvas.height = data.h;
+                            ctx.drawImage(img, 0, 0);
+                            saveDrawingToLocalStorage(data.id, canvas);
+                        };
+                        img.src = data.image;
+                    }
+                }
             }
         } catch (err) {
             console.error("Remote update error", err);
@@ -705,6 +816,42 @@ window.initBoard = function() {
                 }
             });
         }
+
+        // Auto Save Logic
+        const autoSaveToggle = document.getElementById('auto-save-toggle');
+        const savedAutoSave = localStorage.getItem('autoSave') === 'true';
+        
+        if (autoSaveToggle) {
+            autoSaveToggle.checked = savedAutoSave;
+            if (savedAutoSave) startAutoSave();
+            
+            autoSaveToggle.addEventListener('change', (e) => {
+                const enabled = e.target.checked;
+                localStorage.setItem('autoSave', enabled);
+                if (enabled) {
+                    startAutoSave();
+                    window.showCustomAlert("Auto Save On", "Board will save every 10s", "success");
+                } else {
+                    stopAutoSave();
+                    window.showCustomAlert("Auto Save Off", "Auto save disabled", "info");
+                }
+            });
+        }
+
+        function startAutoSave() {
+            stopAutoSave();
+            autoSaveInterval = setInterval(() => {
+                saveBoardState();
+                if (saveStatusText) {
+                    saveStatusText.innerText = 'Auto-Saved';
+                    lastSaveTime = Date.now();
+                }
+            }, 10000);
+        }
+
+        function stopAutoSave() {
+            if (autoSaveInterval) clearInterval(autoSaveInterval);
+        }
     }
 
 
@@ -746,6 +893,9 @@ window.initBoard = function() {
             case 'ADD_ELEMENT': return `Added ${action.elementType === 'flowNode' ? 'Node' : action.elementType === 'sprintList' ? 'Task List' : action.elementType}`;
             case 'MOVE_ELEMENT': return `Moved ${action.elementType}`;
             case 'ADD_EDGE': return 'Connected Nodes';
+            case 'TASK_UPDATE': return `Checked Item in List`;
+            case 'TASK_ADD': return `Added Item to List`;
+            case 'TASK_EDIT': return `Edited Item in List`;
             default: return 'Action';
         }
     }
@@ -768,8 +918,7 @@ window.initBoard = function() {
              
              // Colors
              if (isActive) {
-                 dot.classList.add('bg-blue-500', 'shadow-[0_0_8px_rgba(59,130,246,0.8)]');
-             } else if (isFuture) {
+                dot.classList.add('bg-blue-500', 'shadow-[0_0_0_2px_rgba(96,165,250,0.2)]');             } else if (isFuture) {
                  dot.classList.add('bg-gray-700'); // Dimmed
              } else {
                  dot.classList.add('bg-gray-400'); // Past
@@ -928,6 +1077,14 @@ window.initBoard = function() {
                 action.edge.pathEl.remove();
                 edges = edges.filter(e => e.id !== action.edge.id);
                 break;
+            // Simplified Undo for sprint tasks - just rebuild list for now
+            case 'TASK_UPDATE':
+            case 'TASK_ADD':
+            case 'TASK_EDIT':
+                // Ideally we snapshot the list data, but for brevity we reload if we can
+                // For robust undo, we need full state snap or inverse ops
+                // This part is complex without deep state management, omit for basic request
+                break;
         }
     }
 
@@ -976,7 +1133,7 @@ window.initBoard = function() {
         penColorsContainer.appendChild(div);
     });
     customColorPreview.style.backgroundColor = penColor;
-    customColorInput.addEventListener('change', e => {
+    customColorInput.addEventListener('input', e => {
         penColor = e.target.value;
         customColorPreview.style.backgroundColor = penColor;
     });
@@ -1048,6 +1205,7 @@ window.initBoard = function() {
     const saveStatusText = document.getElementById('save-status-text');
     const savePopup = document.getElementById('save-popup');
     let saveInterval;
+    let autoSaveInterval;
     let lastSaveTime = null;
 
     function saveBoardState() {
@@ -1082,10 +1240,11 @@ window.initBoard = function() {
                 h: n.style.height,
                 content: n.querySelector('textarea').value,
                 sprint: n.dataset.sprint || null,
+                color: n.dataset.color || 'yellow', // Save Color
                 parentId: n.parentElement.classList.contains('canvas-frame') ? n.parentElement.dataset.id : 'workspace',
                 folderId: n.dataset.folderId
             })),
-            sprintLists: currentSprintLists,
+            sprintLists: currentSprintLists, // Use updated lists
             flowNodes: flowNodes.map(n => ({
                 id: n.dataset.id,
                 type: n.dataset.type,
@@ -1153,7 +1312,7 @@ window.initBoard = function() {
                 const parentFrame = frames.find(f => f.id == n.parentId);
                 if (parentFrame) parent = parentFrame.element;
             }
-            addStickyNote(parent, n.id, n.content, parseFloat(n.x), parseFloat(n.y), n.sprint);
+            addStickyNote(parent, n.id, n.content, parseFloat(n.x), parseFloat(n.y), n.sprint, n.color);
             const note = notes.find(x => x.dataset.id == n.id);
             if(note && n.folderId) note.dataset.folderId = n.folderId;
         });
@@ -1304,6 +1463,7 @@ window.initBoard = function() {
                 newSpan.innerText = newText;
                 input.replaceWith(newSpan);
                 updateTracker();
+                emitUpdate('NODE_EDIT', { id: nodeId, text: newText });
             };
             input.addEventListener('blur', save);
             input.addEventListener('keydown', (ev) => { if(ev.key === 'Enter') save(); });
@@ -1432,6 +1592,10 @@ window.initBoard = function() {
                     const parent = el.closest('.task-item');
                     const idx = parseInt(parent.dataset.idx);
                     data.items[idx].completed = !data.items[idx].completed;
+                    
+                    pushHistory({ type: 'TASK_UPDATE', listId: listId, taskIdx: idx, completed: data.items[idx].completed });
+                    emitUpdate('TASK_UPDATE', { listId: listId, taskIdx: idx, completed: data.items[idx].completed });
+                    
                     renderContent();
                 });
             });
@@ -1442,6 +1606,9 @@ window.initBoard = function() {
                 input.addEventListener('change', (e) => {
                     const idx = parseInt(input.dataset.inputIdx);
                     data.items[idx].text = input.value;
+                    
+                    pushHistory({ type: 'TASK_EDIT', listId: listId, taskIdx: idx, text: input.value });
+                    emitUpdate('TASK_EDIT', { listId: listId, taskIdx: idx, text: input.value });
                 });
             });
 
@@ -1449,7 +1616,12 @@ window.initBoard = function() {
             newItemInput.addEventListener('mousedown', (e) => e.stopPropagation());
             newItemInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && newItemInput.value.trim()) {
-                    data.items.push({ text: newItemInput.value.trim(), placeholder: `Task ${data.items.length + 1}`, completed: false });
+                    const newItem = { text: newItemInput.value.trim(), placeholder: `Task ${data.items.length + 1}`, completed: false };
+                    data.items.push(newItem);
+                    
+                    pushHistory({ type: 'TASK_ADD', listId: listId, newItem: newItem });
+                    emitUpdate('TASK_ADD', { listId: listId, newItem: newItem });
+                    
                     renderContent();
                 }
             });
@@ -1919,6 +2091,14 @@ window.initBoard = function() {
             canvas.height = newH;
             ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight);
             saveDrawingToLocalStorage(frameId, canvas);
+        }).on('resizeend', event => {
+             emitUpdate('RESIZE', { 
+                 id: frameId, 
+                 elementType: 'frame', 
+                 w: parseFloat(frame.style.width), 
+                 h: parseFloat(frame.style.height),
+                 image: canvas.toDataURL() // Send image to keep in sync
+             });
         });
 
         const frameData = { id: frameId, x, y, width, height, title, element: frame, folderId: null };
@@ -1952,7 +2132,7 @@ window.initBoard = function() {
     /***********************
      * STICKY NOTES
      ***********************/
-    function addStickyNote(parent = workspace, id = null, content = 'Infinite canvas that feels native.', loadX=null, loadY=null, sprint=null) {
+        function addStickyNote(parent = workspace, id = null, content = '', loadX=null, loadY=null, sprint=null, color=null) {
         const isNested = parent !== workspace;
         const width = 240; 
         const height = 240; 
@@ -1973,11 +2153,12 @@ window.initBoard = function() {
         const noteId = id || Date.now();
 
         const note = document.createElement('div');
-        note.className = 'absolute w-64 bg-[#FFFCF0] border border-yellow-200/60 rounded-2xl p-5 flex flex-col gap-3 group shadow-sm hover:shadow-none transition-shadow select-none';
+        note.className = 'absolute w-64 bg-[#FFFCF0] border border-yellow-200/60 rounded-2xl p-5 flex flex-col gap-3 group shadow-sm hover:shadow-none transition-shadow select-none sticky-note';
         note.style.left = `${x}px`;
         note.style.top = `${y}px`;
         note.dataset.id = noteId;
         if (sprint) note.dataset.sprint = sprint;
+        if (color) note.dataset.color = color;
 
         // --- Header ---
         const header = document.createElement('div');
@@ -1996,23 +2177,32 @@ window.initBoard = function() {
         const menuContainer = document.createElement('div');
         menuContainer.className = 'relative';
         const menuBtn = document.createElement('i');
-        menuBtn.className = 'fa-solid fa-ellipsis text-yellow-300 text-sm cursor-pointer hover:text-yellow-500 transition-colors';
+        menuBtn.className = 'fa-solid fa-ellipsis text-yellow-300 text-sm cursor-pointer hover:text-yellow-500 transition-colors z-30';
         menuContainer.appendChild(menuBtn);
 
         // Dropdown Menu
         const dropdown = document.createElement('div');
-        dropdown.className = 'absolute top-full right-0 mt-2 w-36 bg-white border border-gray-100 rounded-xl shadow-xl z-50 hidden flex-col py-1 animate-fade-in-out origin-top-right';
-        dropdown.style.animation = 'none'; // reset
+        // Replaced Tailwind styling with custom 'sticky-dropdown' class for easier theming
+        dropdown.className = 'sticky-dropdown absolute top-full right-0 mt-2 w-56 rounded-2xl shadow-xl z-[60] hidden flex-col py-1 animate-fade-in-out origin-top-right';
+        dropdown.style.animation = 'none'; // reset animation for clean toggle
         
-        const createDropdownItem = (text, onClick) => {
+        const createDropdownItem = (text, onClick, iconClass = null, hasSubmenu = false) => {
             const item = document.createElement('div');
-            item.className = 'dropdown-item px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 cursor-pointer flex items-center gap-2';
-            item.innerText = text;
-            item.onclick = (e) => {
-                e.stopPropagation();
-                onClick();
-                dropdown.classList.add('hidden');
-            };
+            item.className = `sticky-dropdown-item px-3 py-2 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex w-md items-center gap-2 transition-colors relative ${hasSubmenu ? 'has-submenu' : ''}`;
+            
+            if(iconClass) {
+                item.innerHTML = `<i class="${iconClass} w-4"></i> ${text}`;
+            } else {
+                item.innerText = text;
+            }
+            
+            if (onClick) {
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    onClick();
+                    dropdown.classList.add('hidden');
+                };
+            }
             return item;
         };
 
@@ -2025,40 +2215,74 @@ window.initBoard = function() {
                 delete note.dataset.sprint;
                 sprintTag.classList.add('hidden');
             }
+            emitUpdate('NOTE_UPDATE', { id: noteId, sprint: newSprint }); // Sync Sprint
             updateTracker();
+            dropdown.classList.add('hidden'); // Close after selection
         };
 
-        dropdown.appendChild(createDropdownItem('Assign to Sprint 1', () => updateSprintTag('Sprint 1')));
-        dropdown.appendChild(createDropdownItem('Assign to Sprint 2', () => updateSprintTag('Sprint 2')));
-        dropdown.appendChild(createDropdownItem('Assign to Sprint 3', () => updateSprintTag('Sprint 3')));
-        dropdown.appendChild(createDropdownItem('Clear Sprint', () => updateSprintTag(null)));
+        // Assign to Sprint Item with Submenu
+        const assignBtn = createDropdownItem('Assign to Sprint', null, 'fa-solid fa-list-check', true);
+        // Add chevron right indicator
+        assignBtn.innerHTML += '<i class="fa-solid fa-chevron-right ml-auto text-[10px] opacity-50"></i>';
         
-        const actionDivider = document.createElement('div');
-        actionDivider.className = 'h-[1px] bg-gray-100 my-1';
-        dropdown.appendChild(actionDivider);
+        // Create Submenu Container
+        const submenu = document.createElement('div');
+        submenu.className = 'sticky-submenu hidden absolute right-full top-0 mr-2 flex-col gap-1 shadow-xl rounded-xl p-1 w-48';
+        assignBtn.onmouseenter = () => submenu.classList.remove('hidden');
+        assignBtn.onmouseleave = () => submenu.classList.add('hidden');
+        
+        // Dynamic Sprints based on lists
+        const sprintCount = sprintLists.length > 0 ? sprintLists.length : 3; // Default to 3 if none
+        
+        for(let i=1; i<=sprintCount; i++) {
+            const sprintItem = document.createElement('div');
+            sprintItem.className = 'sticky-dropdown-item px-3 py-1.5 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex items-center gap-2 transition-colors';
+            sprintItem.innerText = `Sprint ${i}`;
+            sprintItem.onclick = (e) => {
+                e.stopPropagation();
+                updateSprintTag(`Sprint ${i}`);
+            };
+            submenu.appendChild(sprintItem);
+        }
+        
+        // Clear Sprint Option
+        const clearItem = document.createElement('div');
+        clearItem.className = 'sticky-dropdown-item px-3 py-1.5 text-xs cursor-pointer rounded-lg mx-1.5 my-0.5 flex items-center gap-2 transition-colors text-gray-400 hover:text-red-400';
+        clearItem.innerText = 'Clear Sprint';
+        clearItem.onclick = (e) => {
+            e.stopPropagation();
+            updateSprintTag(null);
+        };
+        submenu.appendChild(clearItem);
 
-        // Duplicate Action
+        assignBtn.appendChild(submenu);
+        dropdown.appendChild(assignBtn);
+
+        const divider1 = document.createElement('div');
+        divider1.className = 'sticky-dropdown-divider border-t my-1 mx-2';
+        dropdown.appendChild(divider1);
+
+        // Duplicate
         dropdown.appendChild(createDropdownItem('Duplicate', () => {
              const rect = note.getBoundingClientRect();
-             // Calculate workspace coords
              const wsRect = workspace.getBoundingClientRect();
              const dx = (rect.left - wsRect.left) / currentScale + 20;
              const dy = (rect.top - wsRect.top) / currentScale + 20;
-             
-             addStickyNote(parent, null, content, dx, dy, sprint);
-        }));
+             addStickyNote(parent, null, content, dx, dy, sprint, note.dataset.color);
+        }, 'fa-regular fa-copy'));
 
-        const deleteDivider = document.createElement('div');
-        deleteDivider.className = 'h-[1px] bg-gray-100 my-1';
-        dropdown.appendChild(deleteDivider);
+        const divider2 = document.createElement('div');
+        divider2.className = 'sticky-dropdown-divider border-t my-1 mx-2';
+        dropdown.appendChild(divider2);
 
-        const deleteItem = createDropdownItem('Delete Note', () => {
+        // Delete
+        const deleteItem = createDropdownItem('Delete', () => {
             note.remove();
             notes = notes.filter(n => n.dataset.id != noteId);
             updateTracker();
             emitUpdate('DELETE', { id: noteId, elementType: 'note' });
-        });
-        deleteItem.classList.add('text-red-500', 'hover:bg-red-50');
+        }, 'fa-solid fa-trash');
+        deleteItem.classList.add('text-red-400', 'hover:text-red-300');
         dropdown.appendChild(deleteItem);
 
         menuContainer.appendChild(dropdown);
@@ -2067,7 +2291,8 @@ window.initBoard = function() {
         // Toggle Dropdown
         menuBtn.onclick = (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.dropdown-menu').forEach(d => {
+            // Close other dropdowns
+            document.querySelectorAll('.sticky-dropdown').forEach(d => {
                  if(d !== dropdown) d.classList.add('hidden');
             });
             dropdown.classList.toggle('hidden');
@@ -2081,18 +2306,22 @@ window.initBoard = function() {
 
         // --- Content (Textarea styled as P) ---
         const textarea = document.createElement('textarea');
-        textarea.className = 'note-textarea w-full h-full min-h-[80px] bg-transparent resize-none outline-none text-xl font-medium text-gray-800 leading-[1.2] py-1 placeholder-yellow-700/20 pointer-events-none';
+        textarea.className = 'note-textarea w-full h-full min-h-[80px] bg-transparent resize-none outline-none text-xl font-medium placeholder-gray-200 text-gray-800 leading-[1.2] py-1 placeholder-yellow-700/20 pointer-events-none';
         textarea.value = content;
         textarea.placeholder = "Write your idea...";
         
         note.addEventListener('dblclick', (e) => {
-            if (e.target.closest('.fa-ellipsis') || e.target.closest('.dropdown-item')) return;
+            if (e.target.closest('.fa-ellipsis') || e.target.closest('.sticky-dropdown-item')) return;
             
             textarea.classList.remove('pointer-events-none');
             textarea.focus();
             const val = textarea.value;
             textarea.value = '';
             textarea.value = val;
+        });
+        
+        textarea.addEventListener('input', () => {
+             emitUpdate('NOTE_EDIT', { id: noteId, content: textarea.value });
         });
 
         textarea.addEventListener('blur', () => {
@@ -2107,7 +2336,8 @@ window.initBoard = function() {
         footer.className = 'flex items-center justify-between pt-2 mt-auto';
         
         const sprintTag = document.createElement('div');
-        sprintTag.className = 'px-2 py-0.5 bg-yellow-100/50 rounded-md border border-yellow-200/30 text-[10px] font-semibold text-yellow-700';
+        // ADDED 'sprint-tag' CLASS HERE FOR SOCKET SYNC
+        sprintTag.className = 'sprint-tag px-2 py-0.5 bg-yellow-100/50 rounded-md border border-yellow-200/30 text-[10px] font-semibold text-yellow-700';
         if (sprint) {
             sprintTag.innerText = `#${sprint}`;
         } else {
@@ -2116,7 +2346,7 @@ window.initBoard = function() {
         footer.appendChild(sprintTag);
 
         const avatar = document.createElement('div');
-        avatar.className = 'w-5 h-5 rounded-full bg-yellow-200 flex items-center justify-center text-[9px] font-bold text-yellow-700 shadow-sm';
+        avatar.className = ' px-1.5 py-1 rounded-full bg-yellow-200 flex items-center justify-center text-[9px] font-bold text-yellow-700 shadow-sm';
         avatar.innerText = 'YOU';
         footer.appendChild(avatar);
 
@@ -2136,7 +2366,7 @@ window.initBoard = function() {
                 parent: parent
             });
             
-            emitUpdate('ADD', { elementType: 'note', data: { id: noteId, x, y, content, sprint } });
+            emitUpdate('ADD', { elementType: 'note', data: { id: noteId, x, y, content, sprint, color: note.dataset.color } });
         }
         updateTracker();
     }
@@ -2164,7 +2394,7 @@ window.initBoard = function() {
                 if (noteEl.classList.contains('canvas-frame')) targetElementData = { type: 'frame', id, el: noteEl };
                 else if (noteEl.classList.contains('sprint-list')) targetElementData = { type: 'sprintList', id, el: noteEl };
                 else if (noteEl.dataset.type) targetElementData = { type: 'flowNode', id, el: noteEl }; // nodes
-                else if (noteEl.querySelector('.note-textarea')) targetElementData = { type: 'note', id, el: noteEl };
+                else if (noteEl.classList.contains('sticky-note')) targetElementData = { type: 'note', id, el: noteEl };
             }
 
             // Build Menu Items
@@ -2172,8 +2402,8 @@ window.initBoard = function() {
             
             const addItem = (text, icon, onClick) => {
                 const item = document.createElement('div');
-                item.className = 'context-menu-item px-4 py-2 text-sm cursor-pointer hover:bg-[#222426] rounded-lg mx-1.5 my-1 flex items-center gap-3 transition-colors';
-                item.innerHTML = `<i class="${icon} text-gray-400 w-4"></i> ${text}`;
+                item.className = 'sticky-dropdown-item px-4 py-2 text-xs cursor-pointer mx-1.5 my-0.5 flex items-center gap-3 transition-colors dropdown-separator rounded-lg';
+                item.innerHTML = `<i class="${icon} w-4"></i> ${text}`;
                 item.onclick = (ev) => {
                     ev.stopPropagation();
                     onClick();
@@ -2194,7 +2424,7 @@ window.initBoard = function() {
                 });
                 
                 const divider = document.createElement('div');
-                divider.className = 'h-[1px] bg-[#222426] my-1';
+                divider.className = 'sticky-dropdown-divider border-t my-1 mx-2';
                 menu.appendChild(divider);
                 
                 addItem('Delete', 'fa-solid fa-trash text-red-400', () => deleteElement(targetElementData));
@@ -2267,7 +2497,8 @@ window.initBoard = function() {
             const note = notes.find(n => n.dataset.id == data.id);
             const content = note.querySelector('textarea').value;
             const sprint = note.dataset.sprint;
-            addStickyNote(workspace, null, content, x, y, sprint);
+            const color = note.dataset.color;
+            addStickyNote(workspace, null, content, x, y, sprint, color);
         } else if (data.type === 'sprintList') {
             const list = sprintLists.find(l => l.id == data.id);
             // Deep copy items
@@ -2295,8 +2526,8 @@ window.initBoard = function() {
         
         const containerWidth = scrollContainer.clientWidth;
         const containerHeight = scrollContainer.clientHeight;
-        scrollContainer.scrollLeft = centerX - containerWidth / 2 + width / 2;
-        scrollContainer.scrollTop = centerY - containerHeight / 2 + height / 2;
+        scrollContainer.scrollLeft = 14000/2 - containerWidth / 2;
+        scrollContainer.scrollTop = 14000/2 - containerHeight / 2;
     }
 
     document.addEventListener('click', (e) => {
