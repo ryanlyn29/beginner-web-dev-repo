@@ -139,6 +139,10 @@ app.get(["/board", "/chat", "/room"], requiresAuth(), (req, res) => {
   res.sendFile(mainAppPath);
 });
 
+function generateRoomCode(){
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+};
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
