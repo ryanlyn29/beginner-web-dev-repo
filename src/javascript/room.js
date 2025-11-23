@@ -1,3 +1,4 @@
+const socket = io();
 
 /**
  * room.js - SPA Adapted
@@ -50,41 +51,54 @@ window.initRoom = function() {
         if (descriptionText) descriptionText.textContent = 'Enter the unique room code provided by the host to join an existing session.';
     };
 
-    window.resetPage = function () {
-        hideAll();
-        if (actionSelection) actionSelection.style.display = 'flex';
-        if (titleText) titleText.textContent = 'Join or Create a Room';
-        if (descriptionText) descriptionText.textContent = 'Choose an option below to either create a new collaborative space or join an existing one with a room code.';
-    };
+/**Resets the page view to the initial action selection screen.*/
+window.resetPage = function () {
+    hideAll();
+    if (actionSelection) actionSelection.style.display = 'flex';
+    if (titleText) titleText.textContent = 'Join or Create a Room';
+    if (descriptionText) descriptionText.textContent = 'Choose an option below to either create a new collaborative space or join an existing one with a room code.';
+};
+
+socket.on('roomCreated', (data) => {
+    console.log('Room created:', data);
+    alert(`Room created. Code: ${data.roomCode}`);
+    window.location.href = `/board?room=${data.roomCode}`;
+});
+
+socket.on('roomJoined', (data) => {
+    console.log('Joined room:', data);
+    window.location.href = `/board?room=${data.roomCode}`;
+});
+
+socket.on('roomError', (message) => {
+    console.error('Room error:', message);
+    alert(`Error: ${message}`);
+});
 
     // 3. Attach Event Listeners (using signal for easy cleanup)
 
-    // Create Room Handler
-    if (createRoomForm) {
-        createRoomForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const nameVal = roomNameInput ? roomNameInput.value : '';
-            const codeVal = customCodeInput ? customCodeInput.value : '';
-            
-            console.log('Creating room with Name:', nameVal, 'and Code:', codeVal);
-            
-            // TODO: Add actual room creation and redirection logic (e.g., navigate('/board?room=new_id'))
-            // Example: socket.emit('create_room', ...)
-        }, signal);
-    }
+// Listen for form submissions (must be done after the script loads)
+if (createRoomForm) {
+    createRoomForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const roomName = document.getElementById('room-name').value;
+        const customCode = document.getElementById('custom-code').value;
+        console.log('Creating room with Name:', document.getElementById('room-name').value, 'and Code:', document.getElementById('custom-code').value);
+        socket.emit('create-room', {
+            roomName: roomName,
+            customCode: customCode || null
+        });
+    });
+}
 
-    // Join Room Handler
-    if (joinRoomForm) {
-        joinRoomForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const codeVal = roomCodeInput ? roomCodeInput.value : '';
-
-            console.log('Joining room with Code:', codeVal);
-            
-            // TODO: Add actual room joining and redirection logic
-            // Example: socket.emit('join_room', ...)
-        }, signal);
-    }
+if (joinRoomForm) {
+    joinRoomForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const roomCode = document.getElementById('room-code').value;
+        console.log('Joining room with Code:', document.getElementById('room-code').value);
+        socket.emit('join-room', roomCode);
+    });
+}
 
     // Back Buttons Handler
     backButtons.forEach(button => {

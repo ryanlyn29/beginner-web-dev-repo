@@ -29,7 +29,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from src directory
-app.use(express.static(path.join(__dirname, "..", "src")));
+app.use(express.static(path.join(__dirname, "..", 'src')));
 
 // Auth0 configuration
 const config = {
@@ -134,29 +134,58 @@ app.get("/user-data", requiresAuth(), async (req, res) => {
   }
 });
 
-// Board route - protected, requires authentication
-app.get("/board", requiresAuth(), (req, res) => {
-  res.sendFile(mainAppPath, (err) => {
-    if (err) {
-      console.error("Error sending mainapp.html", err);
-      res.status(500).send("Error loading page");
-    }
-  });
-});
-
-// Chat route - protected, requires authentication
-app.get("/chat", requiresAuth(), (req, res) => {
-  res.sendFile(mainAppPath, (err) => {
-    if (err) {
-      console.error("Error sending mainapp.html", err);
-      res.status(500).send("Error loading page");
-    }
-  });
+// SPA Routes - serve mainapp.html for frontend routing
+app.get(["/board", "/chat", "/room"], requiresAuth(), (req, res) => {
+  res.sendFile(mainAppPath);
 });
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+
+  socket.on('create-room', async (data) => {
+    try {
+      const { roomName, customCode } = data;
+      const roomCode = customCode || generateRoomCode();
+
+      const socketsInRoom = await io.in(roomCode).fetchSockets();
+
+      if (customCode && socketsInRoom.length > 0) {
+        socket.emit('roomError', 'Room code already in use. Try a different one.');
+        return;
+      }
+
+      socket.join(roomCode);
+      console.log(`room created: ${roomCode} - ${roomName}`);
+      socket.emit('roomCreated', {
+        roomCode: roomCode,
+        roomName: roomName
+      });
+    } catch (error) {
+      console.error('error creating room:', error);
+      socket.emit('roomError', 'Error creating room.');
+    }
+  });
+
+  socket.on('join-room', async (roomCode) => {
+    try {
+      const socketsInRoom = await io.in(roomCode).fetchSockets();
+
+      if (socketsInRoom.length === 0) {
+        socket.emit('roomError', 'Room does not exist.');
+        return;
+      }
+
+      socket.join(roomCode);
+      console.log(`User ${socket.id} joined room: ${roomCode}`);
+      
+      socket.emit('roomJoined', { roomCode: roomCode });
+      socket.to(roomCode).emit('userJoined', { userId: socket.id });
+    } catch (error) {
+      console.error('error joining room:', error);
+      socket.emit('roomError', 'Error joining room.');
+    }
+  });
 
   // Join a specific board room
   socket.on('join', (boardId) => {
