@@ -172,8 +172,8 @@ window.initPomodoro = function() {
     const renderPomodoro = () => {
         // Dimensions must match CSS defaults to prevent jumps
         const collapsedWidth = '120px'; 
-        const collapsedHeight = '40px'; 
-        const collapsedBorderRadius = '1rem'; // rounded-2xl (16px)
+        const collapsedHeight = '35.5px'; 
+        const collapsedBorderRadius = '1.1rem'; // rounded-2xl (16px)
 
         const expandedTop = '7.5%';
         const expandedWidth = '320px'; // 20rem
