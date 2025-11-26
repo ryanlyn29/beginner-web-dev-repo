@@ -62,21 +62,29 @@ window.resetPage = function () {
     if (descriptionText) descriptionText.textContent = 'Choose an option below to either create a new collaborative space or join an existing one with a room code.';
 };
 
-socket.on('roomCreated', (data) => {
-    console.log('Room created:', data);
-    alert(`Room created. Code: ${data.roomCode}`);
-    window.location.href = `/board?room=${data.roomCode}`;
-});
+// 2. Socket event handlers (safe because socket now exists)
+if (window.socket) {
+    window.socket.off('roomCreated');
+    window.socket.off('roomJoined');
+    window.socket.off('roomError');
 
-socket.on('roomJoined', (data) => {
-    console.log('Joined room:', data);
-    window.location.href = `/board?room=${data.roomCode}`;
-});
+    window.socket.on('roomCreated', (data) => {
+        console.log('Room created:', data);
+        alert(`Room created. Code: ${data.roomCode}`);
+        window.location.href = `/board?room=${data.roomCode}`;
+    });
 
-socket.on('roomError', (message) => {
-    console.error('Room error:', message);
-    alert(`Error: ${message}`);
-});
+    window.socket.on('roomJoined', (data) => {
+        console.log('Joined room:', data);
+        window.location.href = `/board?room=${data.roomCode}`;
+    });
+
+    window.socket.on('roomError', (message) => {
+        console.error('Room error:', message);
+        alert(`Error: ${message}`);
+    });
+}
+
 
     // 3. Attach Event Listeners (using signal for easy cleanup)
 
@@ -163,6 +171,3 @@ window.cleanupRoom = function() {
 };
 
 // Check if script was loaded after DOM ready (hot reload/direct navigation)
-if (document.getElementById('action-selection')) {
-    window.initRoom();
-}

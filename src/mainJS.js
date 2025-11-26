@@ -214,6 +214,13 @@ async function initApp() {
     if (!document.querySelector('script[src="/socket.io/socket.io.js"]')) {
         const socketScript = document.createElement('script');
         socketScript.src = '/socket.io/socket.io.js';
+
+        // ⬇️ ADD THIS
+        socketScript.onload = () => {
+            console.log("Socket.IO client loaded.");
+            window.socket = io();  // ⬅️ THIS FIXES YOUR ERROR
+        };
+
         document.head.appendChild(socketScript);
     }
 
