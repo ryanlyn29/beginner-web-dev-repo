@@ -1,5 +1,3 @@
-const socket = io();
-
 /**
  * room.js - SPA Adapted
  * Handles UI logic for Room Creation/Joining.
@@ -33,6 +31,11 @@ window.initRoom = function() {
         if (actionSelection) actionSelection.style.display = 'none';
         if (createRoomForm) createRoomForm.style.display = 'none';
         if (joinRoomForm) joinRoomForm.style.display = 'none';
+    }
+
+    function generateRoomCode() {
+        // Generate a random 6-character alphanumeric code
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
     // Expose these to window so inline HTML onclick attributes (if any) still work,
@@ -77,28 +80,60 @@ socket.on('roomError', (message) => {
 
     // 3. Attach Event Listeners (using signal for easy cleanup)
 
-// Listen for form submissions (must be done after the script loads)
-if (createRoomForm) {
-    createRoomForm.addEventListener('submit', function(event) {
-        event.preventDefault();
-        const roomName = document.getElementById('room-name').value;
-        const customCode = document.getElementById('custom-code').value;
-        console.log('Creating room with Name:', document.getElementById('room-name').value, 'and Code:', document.getElementById('custom-code').value);
-        socket.emit('create-room', {
-            roomName: roomName,
-            customCode: customCode || null
-        });
-    });
-}
+    // Create Room Handler
+    if (createRoomForm) {
+        createRoomForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const nameVal = roomNameInput ? roomNameInput.value : 'Untitled Room';
+            let codeVal = customCodeInput ? customCodeInput.value.trim() : '';
+            
+            if (!codeVal) {
+                codeVal = generateRoomCode();
+            }
 
-if (joinRoomForm) {
-    joinRoomForm.addEventListener('submit', function(event) {
-        event.preventDefault();
-        const roomCode = document.getElementById('room-code').value;
-        console.log('Joining room with Code:', document.getElementById('room-code').value);
-        socket.emit('join-room', roomCode);
-    });
-}
+            console.log('Creating room with Name:', nameVal, 'and Code:', codeVal);
+            
+            // Navigate to the board with query parameters
+            // Note: We use pushState to set the URL params, then call navigate to load the board script/html
+            const targetUrl = `/board?room=${encodeURIComponent(codeVal)}&role=host&name=${encodeURIComponent(nameVal)}`;
+            
+            // Push state so the URL bar updates
+            window.history.pushState({}, "", targetUrl);
+            
+            // Call the SPA router to load the board content
+            if (typeof navigate === 'function') {
+                navigate('/board'); 
+            } else {
+                window.location.href = targetUrl; // Fallback
+            }
+
+        }, signal);
+    }
+
+    // Join Room Handler
+    if (joinRoomForm) {
+        joinRoomForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const codeVal = roomCodeInput ? roomCodeInput.value.trim() : '';
+
+            if (!codeVal) {
+                alert("Please enter a valid room code.");
+                return;
+            }
+
+            console.log('Joining room with Code:', codeVal);
+            
+            const targetUrl = `/board?room=${encodeURIComponent(codeVal)}&role=guest`;
+
+            window.history.pushState({}, "", targetUrl);
+
+            if (typeof navigate === 'function') {
+                navigate('/board');
+            } else {
+                window.location.href = targetUrl;
+            }
+        }, signal);
+    }
 
     // Back Buttons Handler
     backButtons.forEach(button => {

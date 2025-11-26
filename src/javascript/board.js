@@ -9,16 +9,42 @@ window.initBoard = function() {
     let socket;
     let boardId = 'default-room';
     let isRemoteUpdate = false;
+    let userRole = 'guest';
+
+    // --- USER PERSONA SETUP (Cursors) ---
+    // Updated to use fa-location-arrow and -90deg rotation for all
+    const USER_PERSONAS = [
+        { name: 'Alex', color: '#5C1F1F', bg: '#ffc9c9', icon: 'fa-solid fa-location-arrow', iconColor: '#ffc9c9', rotation: -90 },
+        { name: 'Leo', color: '#444', bg: '#dce8ff', icon: 'fa-solid fa-location-arrow', iconColor: '#ccdeff', rotation: -90 },
+        { name: 'Maya', color: '#2E2172', bg: '#e2d5ff', icon: 'fa-solid fa-location-arrow', iconColor: '#e2d5ff', rotation: -90 },
+        { name: 'Sofia', color: '#214B2A', bg: '#cbffd1', icon: 'fa-solid fa-location-arrow', iconColor: '#a6feb0', rotation: -90 }
+    ];
+
+    // Pick random persona or deterministically based on something
+    const myPersonaIndex = Math.floor(Math.random() * USER_PERSONAS.length);
+    const myPersona = USER_PERSONAS[myPersonaIndex];
+    const myUserId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // Parse URL Parameters
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('room')) {
+        boardId = params.get('room');
+    }
+    if (params.get('role')) {
+        userRole = params.get('role');
+    }
+    // Override name if passed in URL
+    if (params.get('name')) {
+        myPersona.name = decodeURIComponent(params.get('name'));
+    }
 
     // Initialize socket if available
     if (typeof io !== 'undefined') {
         try {
             socket = io();
-            console.log('✅ Socket.IO initialized');
+            console.log('✅ Socket.IO initialized for Room:', boardId);
             
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('room')) boardId = params.get('room');
-            
+            // Join specific room
             socket.emit('join', boardId);
             
             socket.on('board:update', (data) => {
@@ -34,18 +60,66 @@ window.initBoard = function() {
 
     const emitUpdate = (type, data) => {
         if (socket && !isRemoteUpdate) {
-            socket.emit('board:update', { boardId, type, ...data });
+            socket.emit('board:update', { boardId, type, userId: myUserId, ...data });
         }
     };
 
-    const DRAWING_STORAGE_KEY = 'whiteboardDrawings';
-    const BOARD_STATE_KEY = 'whiteboardState';
+    // --- Helper: Throttling for Real-time Updates ---
+    function throttle(func, limit) {
+        let lastFunc;
+        let lastRan;
+        return function() {
+            const context = this;
+            const args = arguments;
+            if (!lastRan) {
+                func.apply(context, args);
+                lastRan = Date.now();
+            } else {
+                clearTimeout(lastFunc);
+                lastFunc = setTimeout(function() {
+                    if ((Date.now() - lastRan) >= limit) {
+                        func.apply(context, args);
+                        lastRan = Date.now();
+                    }
+                }, limit - (Date.now() - lastRan));
+            }
+        }
+    }
+
+    // Throttled Emitters
+    const throttledMoveEmit = throttle((id, x, y) => {
+        emitUpdate('MOVE', { id, x, y });
+    }, 30); // ~30ms update rate
+
+    const throttledResizeEmit = throttle((id, w, h, image = null) => {
+        // We only send image if provided (end of resize), otherwise just dims
+        emitUpdate('RESIZE', { id, elementType: 'frame', w, h, image }); 
+    }, 50);
+
+    const throttledCursorEmit = throttle((x, y) => {
+        emitUpdate('CURSOR_MOVE', { 
+            x, 
+            y, 
+            persona: myPersona 
+        });
+    }, 12);
+
+    // --- CRITICAL: Namespace Storage keys with boardId to separate rooms ---
+    const DRAWING_STORAGE_KEY = `whiteboardDrawings_${boardId}`;
+    const BOARD_STATE_KEY = `whiteboardState_${boardId}`;
 
     const workspace = document.getElementById('workspace');
     const scrollContainer = document.getElementById('scrollContainer');
     const customCursor = document.getElementById('customCursor');
     const edgesSvg = document.getElementById('edges-layer');
     const contextMenu = document.getElementById('context-menu');
+
+    // Update Utility Bar with Room Info
+    const roomInfoDisplay = document.getElementById('room-info-display');
+    const roomIdDisplay = document.getElementById('room-id-display');
+    if (roomIdDisplay) {
+        roomIdDisplay.innerText = `Board Code: ${boardId}`;
+    }
 
     if (!workspace || !scrollContainer || !customCursor || !edgesSvg) {
         console.error('Board elements not found in DOM. Cannot initialize.');
@@ -198,6 +272,7 @@ window.initBoard = function() {
     let sprintLists = []; // Store sprint task lists
     let edges = []; // Store connections: { id, startNodeId, startHandle, endNodeId, endHandle, pathEl }
     let folders = []; // { id, name, collapsed }
+    let remoteCursors = {}; // { userId: { element: DOMElement, timeout: Timer } }
     
     let activeTool = 'mouse';
     let penColor = '#1a1a1a';
@@ -219,21 +294,47 @@ window.initBoard = function() {
      * REMOTE UPDATE LOGIC
      ***********************/
     function handleRemoteUpdate(data) {
+        // Ignore own updates if they ever loop back
+        if (data.userId === myUserId) return;
+
         try {
-            if (data.type === 'MOVE') {
+            if (data.type === 'CURSOR_MOVE') {
+                updateRemoteCursor(data);
+            } else if (data.type === 'SAVE_TRIGGER') {
+                performSaveUI(); // Run save logic without emitting
+            } else if (data.type === 'MOVE') {
                 const el = document.querySelector(`[data-id="${data.id}"]`);
                 if (el) {
+                    // Update position
                     el.style.left = data.x + 'px';
                     el.style.top = data.y + 'px';
+                    
                     if (el.dataset.type) updateEdges();
                 }
+            } else if (data.type === 'DRAW_POINT') {
+                // Real-time drawing segment
+                const frame = frames.find(f => f.id == data.frameId);
+                if (frame) {
+                    const canvas = frame.element.querySelector('canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.globalCompositeOperation = data.tool === 'eraser' ? 'destination-out' : 'source-over';
+                    ctx.strokeStyle = data.color;
+                    ctx.lineWidth = data.size;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(data.prevX, data.prevY);
+                    ctx.lineTo(data.x, data.y);
+                    ctx.stroke();
+                }
             } else if (data.type === 'DRAW') {
+                // Final draw update (full image)
                 const frame = frames.find(f => f.id == data.frameId);
                 if (frame) {
                     const canvas = frame.element.querySelector('canvas');
                     const ctx = canvas.getContext('2d');
                     const img = new Image();
                     img.onload = () => {
+                        ctx.globalCompositeOperation = 'source-over'; // Reset GCO to ensure image draws correctly
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0);
                         saveDrawingToLocalStorage(data.frameId, canvas);
@@ -350,8 +451,10 @@ window.initBoard = function() {
             } else if (data.type === 'RESIZE') {
                 const el = document.querySelector(`[data-id="${data.id}"]`);
                 if (el && data.elementType === 'frame') {
+                    // Update Dimensions
                     el.style.width = data.w + 'px';
                     el.style.height = data.h + 'px';
+                    
                     // Update frame data array
                     const frameData = frames.find(f => f.id == data.id);
                     if(frameData) {
@@ -361,16 +464,35 @@ window.initBoard = function() {
                     
                     // Sync Canvas
                     const canvas = el.querySelector('canvas');
-                    if (canvas && data.image) {
+                    if (canvas) {
                         const ctx = canvas.getContext('2d');
-                        const img = new Image();
-                        img.onload = () => {
-                            canvas.width = data.w;
-                            canvas.height = data.h;
-                            ctx.drawImage(img, 0, 0);
-                            saveDrawingToLocalStorage(data.id, canvas);
-                        };
-                        img.src = data.image;
+                        
+                        // If data.image is provided (Resize End), use it
+                        if (data.image) {
+                            const img = new Image();
+                            img.onload = () => {
+                                canvas.width = data.w;
+                                canvas.height = data.h;
+                                ctx.drawImage(img, 0, 0);
+                                saveDrawingToLocalStorage(data.id, canvas);
+                            };
+                            img.src = data.image;
+                        } 
+                        // If no image (Real-time Resize), avoid scaling to prevent distortion/blur
+                        else {
+                             // Create a temporary canvas with current content
+                             const tempCanvas = document.createElement('canvas');
+                             tempCanvas.width = canvas.width;
+                             tempCanvas.height = canvas.height;
+                             tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                             
+                             // Resize actual canvas
+                             canvas.width = data.w;
+                             canvas.height = data.h;
+                             
+                             // Draw image back at 0,0 without stretching
+                             ctx.drawImage(tempCanvas, 0, 0);
+                        }
                     }
                 }
             }
@@ -746,6 +868,9 @@ window.initBoard = function() {
         // Copy Link Logic
         const copyBtn = document.getElementById('share-copy-btn');
         const shareInput = document.querySelector('#share-popup input');
+        // Pre-fill share input with current URL
+        if (shareInput) shareInput.value = window.location.href;
+        
         if (copyBtn && shareInput) {
             copyBtn.onclick = () => {
                 navigator.clipboard.writeText(shareInput.value).then(() => {
@@ -1221,6 +1346,19 @@ window.initBoard = function() {
             }
         });
 
+        // Update drawing state from all canvases
+        frames.forEach(f => {
+            const canvas = f.element.querySelector('canvas');
+            if(canvas) {
+                drawingsData[f.id] = {
+                    data: canvas.toDataURL(),
+                    originalWidth: canvas.width,
+                    originalHeight: canvas.height
+                };
+            }
+        });
+        localStorage.setItem(DRAWING_STORAGE_KEY, JSON.stringify(drawingsData));
+
         const state = {
             timestamp: Date.now(),
             frames: frames.map(f => ({
@@ -1333,32 +1471,113 @@ window.initBoard = function() {
         return true;
     }
 
+    // Helper to trigger save visual feedback
+    function performSaveUI() {
+        saveStatusText.innerText = 'Saving...';
+        saveBoardState();
+        setTimeout(() => {
+            lastSaveTime = Date.now();
+            saveStatusText.innerText = 'Saved';
+            if (savePopup) {
+                savePopup.style.display = 'flex';
+                savePopup.classList.remove('animate-fade-in-out');
+                void savePopup.offsetWidth;
+                savePopup.classList.add('animate-fade-in-out');
+                setTimeout(() => savePopup.style.display = 'none', 2000);
+            }
+            if (saveInterval) clearInterval(saveInterval);
+            saveInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - lastSaveTime) / 60000);
+                if (diff >= 1) {
+                    saveStatusText.innerText = `Saved ${diff} minute${diff > 1 ? 's' : ''} ago`;
+                } else {
+                     saveStatusText.innerText = 'Saved';
+                }
+            }, 60000);
+        }, 600);
+    }
+
     if (saveBtn && saveStatusText) {
         saveBtn.onclick = () => {
-            saveStatusText.innerText = 'Saving...';
-            saveBoardState();
-            setTimeout(() => {
-                lastSaveTime = Date.now();
-                saveStatusText.innerText = 'Saved';
-                if (savePopup) {
-                    savePopup.style.display = 'flex';
-                    savePopup.classList.remove('animate-fade-in-out');
-                    void savePopup.offsetWidth;
-                    savePopup.classList.add('animate-fade-in-out');
-                    setTimeout(() => savePopup.style.display = 'none', 2000);
-                }
-                if (saveInterval) clearInterval(saveInterval);
-                saveInterval = setInterval(() => {
-                    const diff = Math.floor((Date.now() - lastSaveTime) / 60000);
-                    if (diff >= 1) {
-                        saveStatusText.innerText = `Saved ${diff} minute${diff > 1 ? 's' : ''} ago`;
-                    } else {
-                         saveStatusText.innerText = 'Saved';
-                    }
-                }, 60000);
-            }, 600);
+            // Trigger local save and UI
+            performSaveUI();
+            
+            // Emit save event to other clients
+            emitUpdate('SAVE_TRIGGER', {});
         };
     }
+
+    /***********************
+     * REMOTE CURSORS
+     ***********************/
+
+    function updateRemoteCursor(data) {
+        const { userId, x, y, persona } = data;
+        let cursor = remoteCursors[userId];
+
+        if (!cursor) {
+            // Create cursor element
+            const el = document.createElement('div');
+            // Removed 'transition-transform' and 'duration-75' classes to handle manual transition for left/top
+            el.className = 'remote-cursor absolute pointer-events-none flex items-start z-[999]';
+            
+            // OPTIMIZED: Tighter transition (15ms) to reduce visual lag behind drawing
+            el.style.transition = 'left 0.015s linear, top 0.015s linear';
+            el.style.left = '0px';
+            el.style.top = '0px';
+            
+            // Icon
+            const icon = document.createElement('i');
+            icon.className = `${persona.icon || 'fa-solid fa-location-arrow'} text-lg`;
+            icon.style.color = persona.iconColor || persona.color;
+            
+            // Handle rotation - applied to the ICON, not the container
+            if (typeof persona.rotation === 'number') {
+                icon.style.transform = `rotate(${persona.rotation}deg)`;
+            } else if(persona.rotate) {
+                 icon.style.transform = 'rotate(180deg)';
+            }
+            
+            // Label
+            const label = document.createElement('div');
+            label.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm whitespace-nowrap ml-1 mt-3';
+            label.style.backgroundColor = persona.bg;
+            label.style.color = persona.color;
+            label.innerText = persona.name || 'Guest';
+
+            el.appendChild(icon);
+            el.appendChild(label);
+            workspace.appendChild(el);
+
+            cursor = { element: el, timeout: null };
+            remoteCursors[userId] = cursor;
+        }
+
+        // Update position using left/top instead of transform to avoid stacking issues with workspace scale
+        cursor.element.style.left = `${x}px`;
+        cursor.element.style.top = `${y}px`;
+
+        // Clear remove timer
+        if (cursor.timeout) clearTimeout(cursor.timeout);
+
+        // Remove cursor after 10 seconds of inactivity
+        cursor.timeout = setTimeout(() => {
+            if (cursor.element && cursor.element.parentNode) {
+                cursor.element.parentNode.removeChild(cursor.element);
+            }
+            delete remoteCursors[userId];
+        }, 10000);
+    }
+
+    // Track local mouse movement
+    document.addEventListener('mousemove', (e) => {
+        // Calculate workspace coordinates for the cursor
+        const wsRect = workspace.getBoundingClientRect();
+        const x = (e.clientX - wsRect.left) / currentScale;
+        const y = (e.clientY - wsRect.top) / currentScale;
+        
+        throttledCursorEmit(x, y);
+    });
 
     /***********************
      * DRAWING & STORAGE
@@ -1378,13 +1597,8 @@ window.initBoard = function() {
             const data = drawingsData[id];
             const img = new Image();
             img.onload = () => {
-                const currentWidth = canvas.width;
-                const currentHeight = canvas.height;
-                canvas.width = data.originalWidth;
-                canvas.height = data.originalHeight;
+                // Just draw the image without resetting the canvas size (which clears context)
                 ctx.drawImage(img, 0, 0);
-                canvas.width = currentWidth;
-                canvas.height = currentHeight;
             };
             img.src = data.data;
         }
@@ -1858,6 +2072,11 @@ window.initBoard = function() {
                     element.setAttribute('data-y', y);
                     
                     if (type === 'flowNode') updateEdges();
+
+                    // Real-time Move Sync (Throttled)
+                    const absX = startX + x;
+                    const absY = startY + y;
+                    throttledMoveEmit(element.dataset.id, absX, absY);
                 },
                 end(event) {
                     element.style.zIndex = '';
@@ -1984,6 +2203,8 @@ window.initBoard = function() {
         ctx.lineWidth = penSize;
         let drawing = false;
         let snapshot = null;
+        let lastX = 0;
+        let lastY = 0;
 
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
@@ -1999,6 +2220,8 @@ window.initBoard = function() {
             if (!['pen', 'eraser'].includes(activeTool) || isMovingElement) return;
             snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const { x, y } = getMousePos(e);
+            lastX = x;
+            lastY = y;
             ctx.beginPath();
             ctx.moveTo(x, y);
             drawing = true;
@@ -2017,6 +2240,21 @@ window.initBoard = function() {
             }
             ctx.lineTo(x, y);
             ctx.stroke();
+
+            // Emit Real-time Draw Point
+            emitUpdate('DRAW_POINT', {
+                frameId: frameId,
+                x: x,
+                y: y,
+                prevX: lastX,
+                prevY: lastY,
+                color: penColor,
+                size: activeTool === 'eraser' ? eraserSize : penSize,
+                tool: activeTool
+            });
+
+            lastX = x;
+            lastY = y;
         });
 
         const endStroke = () => {
@@ -2034,6 +2272,7 @@ window.initBoard = function() {
                     after: newSnapshot
                 });
                 
+                // Still emit full image for consistency/finality
                 emitUpdate('DRAW', { frameId: frameId, image: canvas.toDataURL() });
             }
         };
@@ -2081,6 +2320,7 @@ window.initBoard = function() {
             frame.style.width = `${newW}px`;
             frame.style.height = `${newH}px`;
             
+            // Local Canvas Resize Logic (Prevent Distortion/Blur)
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = oldWidth;
@@ -2089,15 +2329,28 @@ window.initBoard = function() {
 
             canvas.width = newW;
             canvas.height = newH;
-            ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight);
+            
+            // Calculate offset to keep drawing stationary relative to world
+            // delta.left/top are screen pixels, divide by scale to get canvas pixels
+            const dx = -(delta.left / currentScale);
+            const dy = -(delta.top / currentScale);
+
+            // Draw original image at offset without stretching
+            ctx.drawImage(tempCanvas, dx, dy); 
+            
             saveDrawingToLocalStorage(frameId, canvas);
+
+            // Emit Real-time Resize
+            throttledResizeEmit(frameId, newW, newH, null);
+
         }).on('resizeend', event => {
+             // Emit final resize with image to ensure exact sync
              emitUpdate('RESIZE', { 
                  id: frameId, 
                  elementType: 'frame', 
                  w: parseFloat(frame.style.width), 
                  h: parseFloat(frame.style.height),
-                 image: canvas.toDataURL() // Send image to keep in sync
+                 image: canvas.toDataURL() 
              });
         });
 
@@ -2522,7 +2775,10 @@ window.initBoard = function() {
         const width = 800, height = 500;
         const centerX = (14000 - width) / 2;
         const centerY = (14000 - height) / 2;
-        const newFrame = createFrame(centerX, centerY, width, height, 'Board 1');
+        
+        // --- FIX: Use deterministic ID for default frame so all users share it ---
+        // Was: const newFrame = createFrame(centerX, centerY, width, height, 'Board 1');
+        const newFrame = createFrame(centerX, centerY, width, height, 'Board 1', 'default-board-1');
         
         const containerWidth = scrollContainer.clientWidth;
         const containerHeight = scrollContainer.clientHeight;

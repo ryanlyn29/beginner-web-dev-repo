@@ -529,6 +529,11 @@
         .placeholder-input::placeholder {
             color: #9CA3AF; /* Gray-400 */
         }
+        
+        /* Remote Cursor Style */
+        .remote-cursor {
+             /* Transition now handled in JS for optimal performance */
+        }
     </style>
 </head>
 
@@ -640,14 +645,14 @@
     <div id="utility-bar" class="fixed top-0 w-full h-[5.5%] z-50 bg-[#121416] text-white text-center flex justify-between items-center px-4 text-xs font-inter font-normal tracking-wider transition-colors duration-300">
         <div class="flex items-center gap-1 whitespace-nowrap">
             <a href="/" class="cursor-pointer">
-                <span class="font-semibold">Whiteflow</span>
+                <span class="font-semibold" id="room-info-display">Whiteflow</span>
             </a>
-            <span class="opacity-70">| Board: Design Sprint 1</span>
+            <span class="opacity-70">| <span id="room-id-display">Board: Default</span></span>
         </div>
 
         <div class="flex-1 flex justify-center overflow-x-hideen no-scrollbar px-2">
             <div id="save-status-text" class="opacity-80 whitespace-nowrap text-center">
-                Auto-Saved • Shared with 3 collaborators
+                Auto-Saved • Shared with collaborators
             </div>
         </div>
 
@@ -658,19 +663,19 @@
             <i id="gear-icon" class="fa-solid fa-gear cursor-pointer hover:rotate-90 transition-transform duration-500 text-md"></i>
             <div class="w-[1px] h-5 bg-gray-400 mx-1 rounded-4xl"></div>
             <div class="relative">
-                <button id="share-btn" class="rounded-xl px-3 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
+                <button id="share-btn" class="rounded-full px-3 py-1.5 text-xs cursor-pointer flex gap-1 items-center justify-center hover:bg-[#2a3a48]">
                     <i class="fa-solid fa-arrow-up-from-bracket"></i>
                     Share
                 </button>
             </div>
-            <button id="save-button" class="bg-blue-700 rounded-xl px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-900 transition-colors text-white">
+            <button id="save-button" class="bg-blue-700 rounded-full px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-900 transition-colors text-white">
                 Save
             </button>
         </div>
     </div>
     
-    <div id="save-popup" class="fixed top-[7.5%] right-[43.2%] lg:right-[46.6%] z-[51] bg-[#100C08] text-white text-sm flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow-lg animate-fade-in-out" style="display: none;">
-        <i class="fa-solid fa-check fa-sm bg-green-600 rounded-full w-full h-full px-2 py-1.5 text-xs leading-none"></i>
+    <div id="save-popup" class="fixed top-[7.5%] right-[42%] lg:right-[46%] z-[51] bg-[#100C08] text-white text-sm flex items-center justify-center gap-2 px-6 py-[7px] rounded-3xl shadow-lg animate-fade-in-out" style="display: none;">
+        <i class="fa-solid fa-check fa-sm bg-green-600 rounded-full w-full h-full px-1.5 py-[5px] text-xs leading-none"></i>
         <span>Saved</span>
     </div>
 
@@ -696,8 +701,8 @@
             <h3 id="input-modal-title" class="text-white font-bold text-sm mb-4">Enter Value</h3>
             <input id="input-modal-field" type="text" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 mb-4" placeholder="...">
             <div class="flex justify-end gap-2">
-                <button id="input-modal-cancel" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-400 hover:text-white hover:bg-[#222426] transition">Cancel</button>
-                <button id="input-modal-confirm" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition">Confirm</button>
+                <button id="input-modal-cancel" class="px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white hover:bg-[#222426] transition">Cancel</button>
+                <button id="input-modal-confirm" class="px-3 py-1.5 rounded-full text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition">Confirm</button>
             </div>
         </div>
     </div>
@@ -711,8 +716,8 @@
         <div class="p-4 space-y-4">
             <p class="text-xs text-gray-400">Invite collaborators or copy the link.</p>
             <div class="flex items-center gap-2">
-                <input type="text" value="https://whiteboard.pro/b/sprint-1" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-lg px-3 py-2 text-xs text-gray-300 outline-none" readonly>
-                <button id="share-copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-2 text-xs whitespace-nowrap transition-colors">
+                <input type="text" value="https://whiteboard.pro/b/sprint-1" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-3 py-2 text-xs text-gray-300 outline-none" readonly>
+                <button id="share-copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-2 text-xs whitespace-nowrap transition-colors">
                     Copy
                 </button>
             </div>

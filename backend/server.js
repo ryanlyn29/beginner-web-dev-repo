@@ -103,7 +103,7 @@ app.get("/", (req, res) => {
   } else {
     // User is not logged in, show signin page
     // Ensure path exists, otherwise fallback or send simple html
-    const signinPath = path.join(__dirname, "src/Pages", "signin.html");
+    const signinPath = path.join(__dirname, "..", "src/Pages", "signin.html");
     res.sendFile(signinPath, (err) => {
         if(err) res.redirect('/login'); // Fallback to Auth0 login if custom page fails
     });
@@ -193,8 +193,13 @@ io.on('connection', (socket) => {
 
   // Join a specific board room
   socket.on('join', (boardId) => {
+    // Leave previous rooms if necessary, or just join the new one
+    // Ideally, a socket is only on one board at a time
     socket.join(boardId);
-    console.log(`User ${socket.id} joined board: ${boardId}`);
+    console.log(`User ${socket.id} joined board room: ${boardId}`);
+    
+    // Optional: Notify others in room
+    // socket.to(boardId).emit('user:joined', { id: socket.id });
   });
 
   // Handle board updates and broadcast to others in the room
