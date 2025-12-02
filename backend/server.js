@@ -17,7 +17,7 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   }
 });
-const port = process.env.PORT || 3000; 
+const port = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +36,7 @@ const config = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET,
-  baseURL: process.env.AUTH0_BASE_URL || 'http://localhost:3000',
+  baseURL: process.env.AUTH0_BASE_URL,
   clientID: process.env.AUTH0_CLIENT_ID,
   issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`
 };
