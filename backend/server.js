@@ -18,8 +18,11 @@ const io = new Server(httpServer, {
   }
 });
 const port = process.env.PORT || 3000;
-httpServer.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
+const host = '0.0.0.0'; // Define host for Railway
+
+httpServer.listen(port, host, () => {
+    console.log(`Server listening on ${host}:${port}`);
+    console.log(`Socket.IO ready`);
 });
 
 const __filename = fileURLToPath(import.meta.url);
