@@ -1,3 +1,4 @@
+
 /**
  * POMODORO TIMER - PERSISTENCE & LOGIC FIX
  * 
@@ -68,9 +69,10 @@ window.initPomodoro = function() {
         lastUpdated: Date.now()
     };
 
-    // Initialize Games if available
-    if (window.Games && window.Games.init) {
-        window.Games.init();
+    // Initialize Games module without overriding board.js initialization
+    if (window.Games && !window.Games.initialized) {
+        // Init with null to setup DOM references, wait for Board to provide socket
+        window.Games.init(null, null, null); 
     }
 
     // --- 5. PERSISTENCE FUNCTIONS ---
@@ -175,7 +177,6 @@ window.initPomodoro = function() {
         const collapsedHeight = '35.5px'; 
         const collapsedBorderRadius = '1.1rem'; // rounded-2xl (16px)
 
-        const expandedTop = '7.5%';
         const expandedWidth = '320px'; // 20rem
         const expandedHeight = '380px'; 
         const expandedBorderRadius = '1.2rem'; 
@@ -246,7 +247,10 @@ window.initPomodoro = function() {
             timerView.classList.add('hidden');
             gameView.classList.remove('hidden');
             gameView.style.display = 'flex'; // Ensure proper display
-            if(window.Games) window.Games.enable();
+            
+            // Enable games module (render menu)
+            if(window.Games && window.Games.enable) window.Games.enable();
+            
             gamesToggleButton.classList.add('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-gray-900');
         } else {
             gameView.classList.add('hidden');
@@ -418,7 +422,8 @@ window.initPomodoro = function() {
         gameView.classList.remove('hidden');
         timerView.classList.add('hidden');
         gameView.style.display = 'flex';
-        if(window.Games) window.Games.enable();
+        // Safe check before enable
+        if(window.Games && window.Games.enable) window.Games.enable();
     } else {
         gameView.classList.add('hidden');
         gameView.style.display = 'none';
