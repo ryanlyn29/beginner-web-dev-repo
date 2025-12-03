@@ -33,16 +33,16 @@ window.initBoard = function() {
     // --- FETCH USER DATA ---
     async function fetchUserSession() {
         try {
-            // Assumes a standard endpoint based on project structure (Redis/Auth existence)
+            // Assumes a standard endpoint based on project structure
             // If backend is running, this should return the logged-in user matching Redis structure
-            const response = await fetch('/api/user/me'); // Adjust endpoint if specific framework differs
+            const response = await fetch('/api/user/me'); 
             if (response.ok) {
                 const user = await response.json();
                 currentUser = user;
                 myUserId = user.id;
                 myPersona = {
-                    name: user.name,
-                    color: '#333', // Default or derived from ID
+                    name: user.email || user.name, // Use Email as requested if available
+                    color: '#333', 
                     bg: '#e2d5ff',
                     icon: 'fa-solid fa-location-arrow',
                     iconColor: '#a6feb0',
@@ -148,7 +148,7 @@ window.initBoard = function() {
             y, 
             persona: myPersona 
         });
-    }, 12);
+    }, 20); // Sync cursor frequently enough
 
     // --- CRITICAL: Namespace Storage keys with boardId to separate rooms ---
     const DRAWING_STORAGE_KEY = `whiteboardDrawings_${boardId}`;
@@ -602,11 +602,10 @@ window.initBoard = function() {
 
     // Helper to maintain consistent size of user cursors regardless of zoom level
     function updateRemoteCursorScales() {
-        const invScale = 1 / currentScale;
-        document.querySelectorAll('.remote-cursor').forEach(el => {
-            // Apply scale inverse to cursor, but keep rotation if applied to icon child
-            el.style.transform = `translate3d(0,0,0) scale(${invScale})`; 
-        });
+        // Cursors are inside workspace. If workspace scales, cursors scale. 
+        // We apply inverse scale to keep them constant visual size.
+        // We use translate3d inside animateRemoteCursors for position, so just update scale here.
+        // Actually animateRemoteCursors handles the scale per frame to ensure smoothness.
     }
 
 
@@ -979,7 +978,11 @@ window.initBoard = function() {
         // Profile Modal (Uses Custom Alert for now as placeholder for full profile view)
         if (profileBtn) {
             profileBtn.onclick = () => {
-                window.showCustomAlert("Profile", `Logged in as: ${currentUser ? currentUser.name : 'Guest'}`, "info");
+                if (currentUser) {
+                     window.showCustomAlert("Profile", `Logged in as: ${currentUser.name} (${currentUser.email})`, "info");
+                } else {
+                     window.showCustomAlert("Guest Profile", "You are currently browsing as a guest.", "info");
+                }
                 userPopup.classList.add('hidden');
             }
         }
@@ -987,13 +990,8 @@ window.initBoard = function() {
         // Logout
         if (logoutBtn) {
             logoutBtn.onclick = () => {
-                // Try standard logout endpoint
-                fetch('/logout').then(() => {
-                    window.location.href = '/'; // Redirect home
-                }).catch(err => {
-                    // Fallback redirect if fetch fails
-                    window.location.href = '/logout'; 
-                });
+                // Standard logout redirect
+                window.location.href = '/logout';
             };
         }
 
@@ -1613,10 +1611,12 @@ window.initBoard = function() {
         if (!cursor) {
             // Create cursor element
             const el = document.createElement('div');
-            // OPTIMIZED: Removed 'transition' from CSS class to handle in JS via requestAnimationFrame for smoothness
+            // OPTIMIZED: use will-change for performance
             el.className = 'remote-cursor absolute pointer-events-none flex items-start z-[999]';
             el.style.left = '0';
             el.style.top = '0';
+            // CRITICAL PARALLAX FIX: Set origin to top-left so scaling doesn't shift position relative to grid
+            el.style.transformOrigin = '0 0';
             el.style.willChange = 'transform';
             
             // Icon
@@ -1669,7 +1669,8 @@ window.initBoard = function() {
 
     // --- ANIMATION LOOP FOR SMOOTH CURSOR MOVEMENT ---
     function animateRemoteCursors() {
-        const smoothing = 0.2; // Interpolation factor (0.1 to 1)
+        // Higher smoothing factor for faster (more "real-time") response
+        const smoothing = 0.5; 
 
         for (const userId in remoteCursors) {
             const cursor = remoteCursors[userId];
@@ -1679,9 +1680,11 @@ window.initBoard = function() {
             cursor.currentX += (cursor.targetX - cursor.currentX) * smoothing;
             cursor.currentY += (cursor.targetY - cursor.currentY) * smoothing;
 
-            // Apply inverse scale to keep size consistent on zoom
+            // Apply inverse scale to keep visual size consistent during zoom
+            // BUT position must match workspace coordinate system
             const invScale = 1 / currentScale;
             // Use translate3d for hardware acceleration
+            // Parallax prevention: origin is 0,0, so translate moves to exact workspace coord, scale keeps it legible
             cursor.element.style.transform = `translate3d(${cursor.currentX}px, ${cursor.currentY}px, 0) scale(${invScale})`;
         }
 
@@ -2203,9 +2206,7 @@ window.initBoard = function() {
                     const translateY = currentY - startY;
                     element.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`;
                     
-                    // OPTIONAL: Update edges immediately if critical, or throttle/defer to end
-                    // Updating edges on every frame can be expensive. For now, we update.
-                    // If performance is still an issue, we can use requestAnimationFrame here too.
+                    // Update edges if critical
                     if (type === 'flowNode') updateEdges();
 
                     // Real-time Move Sync (Throttled)
@@ -2891,8 +2892,59 @@ window.initBoard = function() {
             const text = node.querySelector('span').innerText || node.querySelector('input')?.value;
             createFlowNode(node.dataset.type, null, x, y, text);
         } else if (data.type === 'frame') {
-             window.showCustomAlert("Duplicate Frame", "Duplicating entire frames including drawings is complex and coming soon!", "info");
+             // Fully duplicate frame logic
+             duplicateFrame(data.id);
         }
+    }
+    
+    function duplicateFrame(frameId) {
+        const frame = frames.find(f => f.id == frameId);
+        if(!frame) return;
+
+        const offset = 50;
+        const newX = parseFloat(frame.element.style.left) + frame.width + offset;
+        const newY = parseFloat(frame.element.style.top);
+
+        // Create new frame
+        const newFrameData = createFrame(newX, newY, frame.width, frame.height, frame.title + " (Copy)");
+
+        // Copy Canvas Content
+        const sourceCanvas = frame.element.querySelector('canvas');
+        const destCanvas = newFrameData.element.querySelector('canvas');
+        if (sourceCanvas && destCanvas) {
+            const destCtx = destCanvas.getContext('2d');
+            destCtx.drawImage(sourceCanvas, 0, 0);
+            saveDrawingToLocalStorage(newFrameData.id, destCanvas);
+            emitUpdate('DRAW', { frameId: newFrameData.id, image: destCanvas.toDataURL() });
+        }
+
+        // Find and copy nested elements (Notes)
+        const frameRect = { 
+            x: parseFloat(frame.element.style.left), 
+            y: parseFloat(frame.element.style.top), 
+            w: frame.width, 
+            h: frame.height 
+        };
+
+        // Check if any notes are within this frame's bounds
+        notes.forEach(note => {
+            const nx = parseFloat(note.style.left);
+            const ny = parseFloat(note.style.top);
+            
+            // Simple bounding box check
+            if (nx >= frameRect.x && nx <= frameRect.x + frameRect.w && 
+                ny >= frameRect.y && ny <= frameRect.y + frameRect.h) {
+                
+                // Calculate relative pos
+                const relX = nx - frameRect.x;
+                const relY = ny - frameRect.y;
+                
+                const content = note.querySelector('textarea').value;
+                addStickyNote(workspace, null, content, newX + relX, newY + relY, note.dataset.sprint, note.dataset.color);
+            }
+        });
+        
+        window.showCustomAlert("Success", "Frame duplicated successfully", "success");
     }
 
     /***********************
