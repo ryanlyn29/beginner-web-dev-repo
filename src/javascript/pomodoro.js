@@ -8,6 +8,7 @@
  *    even if the browser tab is closed or throttled.
  * 3. Auto-Start: Automatically starts the next phase (Work -> Break -> Work) for continuous flow.
  * 4. Smart Resume: Detects if timer expired while tab was closed and handles it immediately.
+ * 5. Dynamic Resizing: Listens to game events to resize container.
  */
 
 window.initPomodoro = function() {
@@ -66,6 +67,8 @@ window.initPomodoro = function() {
         pomodoroCount: 0,
         isPomodoroOpen: false,
         isGameViewActive: false,
+        gameWidth: '380px', // Default menu width
+        gameHeight: '260px', // Default menu height
         lastUpdated: Date.now()
     };
 
@@ -177,13 +180,11 @@ window.initPomodoro = function() {
         const collapsedHeight = '35.5px'; 
         const collapsedBorderRadius = '1.1rem'; // rounded-2xl (16px)
 
-        const expandedWidth = '320px'; // 20rem
+        // Standard Timer View dimensions
+        const expandedWidth = '320px'; 
         const expandedHeight = '380px'; 
         const expandedBorderRadius = '1.2rem'; 
         
-        const gameWidth = '450px';
-        const gameHeight = '550px';
-
         pomodoroContainer.style.top = '7.5%';
         pomodoroContainer.style.left = '50%'; 
         pomodoroContainer.style.transform = 'translateX(-50%)'; 
@@ -191,8 +192,9 @@ window.initPomodoro = function() {
         if (state.isPomodoroOpen) {
             // Expanded State
             if (state.isGameViewActive) {
-                pomodoroContainer.style.width = gameWidth;
-                pomodoroContainer.style.height = gameHeight;
+                // Use dynamic dimensions from state (set by games.js events)
+                pomodoroContainer.style.width = state.gameWidth;
+                pomodoroContainer.style.height = state.gameHeight;
             } else {
                 pomodoroContainer.style.width = expandedWidth;
                 pomodoroContainer.style.height = expandedHeight;
@@ -248,7 +250,7 @@ window.initPomodoro = function() {
             gameView.classList.remove('hidden');
             gameView.style.display = 'flex'; // Ensure proper display
             
-            // Enable games module (render menu)
+            // Enable games module (render menu) and trigger initial resize for menu
             if(window.Games && window.Games.enable) window.Games.enable();
             
             gamesToggleButton.classList.add('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-gray-900');
@@ -393,6 +395,16 @@ window.initPomodoro = function() {
     if(gamesToggleButton) {
         gamesToggleButton.onclick = () => toggleGameView();
     }
+
+    // LISTENER: Dynamic Game Resize
+    window.addEventListener('pomodoro-resize', (e) => {
+        if (e.detail && e.detail.width && e.detail.height) {
+            state.gameWidth = e.detail.width;
+            state.gameHeight = e.detail.height;
+            saveState(); // Persist for refreshes
+            renderPomodoro();
+        }
+    });
     
     // --- 9. INITIALIZATION EXECUTION ---
 
