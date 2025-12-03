@@ -94,6 +94,10 @@ window.initPomodoro = function() {
                 // Merge saved state with defaults to ensure all keys exist
                 state = { ...state, ...parsed };
                 
+                // FORCE COLLAPSED ON LOAD
+                // User requested the timer NOT be open on initial render
+                state.isPomodoroOpen = false; 
+
                 // Logic: Handle time passed while tab was closed
                 if (state.isRunning && state.targetTime) {
                     const now = Date.now();
@@ -185,8 +189,8 @@ window.initPomodoro = function() {
         
         // LARGE Game Size (For Tic Tac Toe, RPS, Connect 4)
         // Significantly larger to provide immersive play area
-        const largeGameWidth = '700px';
-        const largeGameHeight = '750px';
+        const largeGameWidth = '750px';
+        const largeGameHeight = '800px';
 
         pomodoroContainer.style.top = '7.5%';
         pomodoroContainer.style.left = '50%'; 
