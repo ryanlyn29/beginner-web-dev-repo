@@ -7,6 +7,7 @@
  * - Event-driven architecture for Socket.IO integration.
  * - Multiplayer Connect 4, Tic-Tac-Toe, Rock Paper Scissors.
  * - Solo Candy Match (Logic Fixed) & Memory Game.
+ * - Dynamic Container Resizing.
  */
 
 // Inject styles for animations and game-specific UI
@@ -97,6 +98,9 @@ const Games = {
         // Force show menu if no active game
         if (!this.activeGame) {
             this.showMenu();
+        } else {
+            // Re-trigger size if resuming active game
+            this.activeGame.emitResize();
         }
     },
 
@@ -144,6 +148,13 @@ const Games = {
         if (this.activeGame && typeof this.activeGame.onRemoteData === 'function') {
             this.activeGame.onRemoteData(data);
         }
+    },
+
+    dispatchResize(width, height) {
+        const event = new CustomEvent('pomodoro-resize', { 
+            detail: { width, height } 
+        });
+        window.dispatchEvent(event);
     },
 
     renderMenu() {
@@ -203,6 +214,9 @@ const Games = {
         this.container.style.display = 'none';
         if (this.backBtn) this.backBtn.style.display = 'none';
         
+        // Set Menu Dimensions (Wider, Shorter)
+        this.dispatchResize('480px', '260px');
+        
         // Force re-render to restart animations
         this.renderMenu();
     },
@@ -215,23 +229,30 @@ const Games = {
         this.container.className = "w-full h-full flex flex-col items-center justify-center p-2 animate-soft-slide";
 
         // Initialize specific game class
+        // Dimensions passed are requested container sizes
         switch(gameId) {
             case 'connect4':
+                this.dispatchResize('520px', '600px'); // Wide and tall
                 this.activeGame = new ConnectFour(this.container, this.currentUser, (t, p) => this.send(t, p));
                 break;
             case 'tictactoe':
+                this.dispatchResize('380px', '500px'); // Compact
                 this.activeGame = new TicTacToe(this.container, this.currentUser, (t, p) => this.send(t, p));
                 break;
             case 'rps':
+                this.dispatchResize('420px', '550px'); // Mid-sized
                 this.activeGame = new RockPaperScissors(this.container, this.currentUser, (t, p) => this.send(t, p));
                 break;
             case 'match3':
+                this.dispatchResize('400px', '580px'); // Tall
                 this.activeGame = new MatchThree(this.container, this.currentUser);
                 break;
             case 'memory':
+                this.dispatchResize('400px', '500px'); // Square-ish
                 this.activeGame = new MemoryGame(this.container);
                 break;
             case 'runner':
+                this.dispatchResize('400px', '320px'); // Wide and short
                 this.activeGame = new DinoRunner(this.container);
                 break;
         }
@@ -320,6 +341,11 @@ class MultiplayerGame {
     onLeave() {
         this.emit(this.prefix + '_LEAVE', {});
     }
+    
+    // Fallback to emit resize if resuming game
+    emitResize() {
+        // Overridden by subclasses if needed
+    }
 }
 
 /* =========================================
@@ -337,6 +363,8 @@ class ConnectFour extends MultiplayerGame {
         this.initUI();
         this.emit('C4_STATE_REQ', {});
     }
+    
+    emitResize() { Games.dispatchResize('520px', '600px'); }
 
     initUI() {
         const wrapper = document.createElement('div');
@@ -512,6 +540,8 @@ class TicTacToe extends MultiplayerGame {
         this.initUI();
         this.emit('TTT_STATE_REQ', {});
     }
+    
+    emitResize() { Games.dispatchResize('380px', '500px'); }
 
     initUI() {
         const wrapper = document.createElement('div');
@@ -657,6 +687,8 @@ class RockPaperScissors extends MultiplayerGame {
         this.initUI();
         this.emit('RPS_STATE_REQ', {});
     }
+    
+    emitResize() { Games.dispatchResize('420px', '550px'); }
 
     initUI() {
         const wrapper = document.createElement('div');
@@ -827,6 +859,8 @@ class MatchThree {
         this.isProcessing = false;
         this.init();
     }
+    
+    emitResize() { Games.dispatchResize('400px', '580px'); }
 
     init() {
         const wrapper = document.createElement('div');
@@ -1052,6 +1086,7 @@ class MemoryGame {
         this.root = root;
         this.init();
     }
+    emitResize() { Games.dispatchResize('400px', '500px'); }
     init() {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex flex-col items-center justify-center h-full gap-4';
@@ -1127,6 +1162,7 @@ class DinoRunner {
         this.root = root;
         this.init();
     }
+    emitResize() { Games.dispatchResize('400px', '320px'); }
     init() {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex flex-col items-center justify-center h-full gap-3';
