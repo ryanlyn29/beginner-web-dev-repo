@@ -1,3 +1,4 @@
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -203,6 +204,24 @@ io.on('connection', (socket) => {
     if (boardId) {
         socket.to(boardId).emit('board:update', data);
     }
+  });
+
+  /* 
+   * NEW: Game Action Handler
+   * Broadcasts specific game moves/actions to everyone in the room
+   * This allows Games.js to stay in sync.
+   * Client-side logic handles state validation (optimistic UI + eventual consistency for this scope)
+   */
+  socket.on('game:action', (data) => {
+      const { boardId } = data;
+      if (boardId) {
+          // Broadcast to everyone including sender (simplified sync) 
+          // or excluding sender if optimistic UI is perfect.
+          // Here we broadcast to *others* usually, but for authoritative state games 
+          // sometimes it's easier to broadcast to all. 
+          // Following established pattern: broadcast to others.
+          socket.to(boardId).emit('game:action', data);
+      }
   });
 
   socket.on('disconnect', () => {
