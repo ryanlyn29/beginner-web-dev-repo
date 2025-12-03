@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,6 +49,7 @@
         body.light-mode #tracker-container,
         body.light-mode #sidebar-container,
         body.light-mode #settings-card,
+        body.light-mode #profile-card,
         body.light-mode #share-popup,
         body.light-mode #user-popup,
         body.light-mode #custom-alert > div,
@@ -77,6 +79,7 @@
         body.light-mode #sidebar-expanded .bg-\[\#151313\],
         body.light-mode #tracker-expanded .bg-\[\#151313\],
         body.light-mode #settings-card .bg-\[\#151313\],
+        body.light-mode #profile-card .bg-\[\#151313\],
         body.light-mode .popup-header {
             background-color: #E5E7EB !important; /* Light Gray Header */
             border-bottom-color: #D1D5DB !important;
@@ -207,6 +210,7 @@
         
         /* Closing Buttons Hover - Light Gray in Light Mode */
         body.light-mode #close-settings:hover,
+        body.light-mode #close-profile:hover,
         body.light-mode #toggle-expanded:hover,
         body.light-mode #tracker-toggle-expanded:hover,
         body.light-mode #pomodoro-toggle-expanded:hover {
@@ -214,19 +218,29 @@
             color: #111827 !important; /* Dark Icon */
         }
         
-        /* Settings Headers */
-        body.light-mode #settings-card .bg-\[\#151313\] {
+        /* Settings/Profile Headers */
+        body.light-mode #settings-card .bg-\[\#151313\],
+        body.light-mode #profile-card .bg-\[\#151313\] {
             background-color: #F3F4F6 !important;
             border-color: #E5E7EB !important;
         }
         
         /* Inner Cards */
         body.light-mode .bg-\[\#1a1b1d\], 
-        body.light-mode #settings-card .bg-\[\#1a1b1d\] {
+        body.light-mode #settings-card .bg-\[\#1a1b1d\],
+        body.light-mode #profile-card .bg-\[\#1a1b1d\] {
             background-color: #FFFFFF !important;
             border-color: #E5E7EB !important;
         }
         
+        /* Inputs in Light Mode */
+        body.light-mode input[type="text"],
+        body.light-mode input[type="email"] {
+            background-color: #FFFFFF !important;
+            border-color: #D1D5DB !important;
+            color: #1F2937 !important;
+        }
+
         /* Global Text Swaps (Low Specificity, overridden by above) */
         body.light-mode .text-white { color: #111827 !important; } 
         body.light-mode .text-gray-400 { color: #6B7280 !important; } 
@@ -752,11 +766,6 @@
                 
                 <div id="collaborators-list" class="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scroll">
                      <!-- Collaborators injected here -->
-                     <div class="flex items-center gap-2 text-xs">
-                         <div class="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center font-bold">JS</div>
-                         <span class="text-gray-300">John Smith</span>
-                         <span class="text-[10px] text-gray-500 ml-auto">Owner</span>
-                     </div>
                 </div>
             </div>
         </div>
@@ -856,6 +865,54 @@
             <!-- List -->
             <div id="tracker-list" class="flex-1 flex flex-col gap-1 overflow-y-auto px-2 py-2 space-y-1 scroll-smooth custom-scroll">
                 <!-- Tracker items injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL (New Professional Design) -->
+    <div id="profile-modal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300" aria-hidden="true">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="profile-backdrop"></div>
+        
+        <!-- Modal Card -->
+        <div class="relative bg-[#100C08] border border-[#222426] rounded-[1.5rem] w-full max-w-sm transform scale-95 transition-all duration-300 shadow-2xl overflow-hidden text-white" id="profile-card">
+            <!-- Header with Banner -->
+            <div class="h-24 bg-gradient-to-r from-blue-900 to-slate-900 border-b border-[#222426] relative">
+                 <button id="close-profile" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/20">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Content with Negative Margin for Avatar -->
+            <div class="px-6 pb-6 -mt-10 relative">
+                 <!-- Avatar -->
+                 <div class="w-20 h-20 rounded-full border-4 border-[#100C08] bg-[#1a1b1d] flex items-center justify-center text-2xl font-bold shadow-lg mb-4" id="profile-modal-avatar">
+                     U
+                 </div>
+                 
+                 <div class="space-y-4">
+                     <div>
+                         <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">Display Name</label>
+                         <input type="text" id="profile-name-input" class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-gray-600" placeholder="Enter your name">
+                     </div>
+                     
+                     <div>
+                         <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">Email Address</label>
+                         <input type="email" id="profile-email-input" class="w-full bg-[#151313] border border-[#222426] rounded-xl px-4 py-2.5 text-sm text-gray-400 focus:outline-none cursor-not-allowed" readonly>
+                     </div>
+                     
+                     <div>
+                         <label class="block text-[10px] uppercase font-bold text-gray-500 mb-2 tracking-wider">Cursor & Persona Color</label>
+                         <div class="flex gap-2" id="profile-color-picker">
+                             <!-- Colors injected via JS -->
+                         </div>
+                     </div>
+                 </div>
+                 
+                 <div class="mt-8 pt-4 border-t border-[#222426] flex justify-end gap-3">
+                     <button class="px-4 py-2 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition-colors" id="cancel-profile-btn">Cancel</button>
+                     <button class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-900/20 transition-all" id="save-profile-btn">Save Changes</button>
+                 </div>
             </div>
         </div>
     </div>
