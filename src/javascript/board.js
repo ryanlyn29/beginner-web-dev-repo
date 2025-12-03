@@ -1,3 +1,4 @@
+
 /************************************************************
  * INFINITE WHITEBOARD IMPLEMENTATION WITH SOCKET.IO
  ************************************************************/
@@ -33,23 +34,45 @@ window.initBoard = function() {
     // --- FETCH USER DATA ---
     async function fetchUserSession() {
         try {
-            // Assumes a standard endpoint based on project structure
-            // If backend is running, this should return the logged-in user matching Redis structure
-            const response = await fetch('/api/user/me'); 
+            // Fetch authenticated user data from the specific backend endpoint provided in server.js
+            const response = await fetch('/user-data'); 
             if (response.ok) {
                 const user = await response.json();
-                currentUser = user;
-                myUserId = user.id;
-                myPersona = {
-                    name: user.email || user.name, // Use Email as requested if available
-                    color: '#333', 
-                    bg: '#e2d5ff',
-                    icon: 'fa-solid fa-location-arrow',
-                    iconColor: '#a6feb0',
-                    rotation: -90
-                };
-                updateUserUI(user);
-                console.log('✅ Logged in as:', user.name);
+                
+                // If user object is empty (e.g. redis issue but auth0 ok), might need fallback
+                if (!user || Object.keys(user).length === 0) {
+                     // Try profile fallback if user-data is empty
+                     const profileRes = await fetch('/profile');
+                     if(profileRes.ok) {
+                         const profile = await profileRes.json();
+                         // Construct user object from Auth0 profile
+                         currentUser = {
+                             id: profile.sub.replace(/\|/g, '-'),
+                             name: profile.name,
+                             email: profile.email,
+                             picture: profile.picture
+                         };
+                     }
+                } else {
+                    currentUser = user;
+                }
+
+                if (currentUser) {
+                    myUserId = currentUser.id;
+                    myPersona = {
+                        name: currentUser.email || currentUser.name, // Prefer Email as requested
+                        color: '#333', 
+                        bg: '#e2d5ff',
+                        icon: 'fa-solid fa-location-arrow',
+                        iconColor: '#a6feb0',
+                        rotation: -90
+                    };
+                    updateUserUI(currentUser);
+                    console.log('✅ Logged in as:', currentUser.email);
+                } else {
+                    console.warn('User data empty, using guest.');
+                    updateUserUI(null);
+                }
             } else {
                 console.warn('Running in Guest Mode (No Auth Session)');
                 updateUserUI(null); // Set UI to Guest
@@ -68,19 +91,32 @@ window.initBoard = function() {
         const popupAvatar = document.getElementById('popup-user-avatar');
 
         if (user) {
-            const initials = user.name.substring(0, 2).toUpperCase();
-            if (nameEl) nameEl.innerText = user.name;
+            // Use email or name for display, prioritized
+            const displayName = user.name || user.email;
+            const initials = displayName.substring(0, 2).toUpperCase();
+            
+            if (nameEl) nameEl.innerText = displayName;
             if (iconEl) {
-                iconEl.innerText = initials;
-                iconEl.classList.remove('fa-user'); // remove generic icon
-                iconEl.classList.add('font-bold');
+                // If picture exists, could use it, otherwise initials
+                if (user.picture && !user.picture.includes('s.gravatar.com')) { 
+                    // Simple check to avoid broken gravatars if needed, or just use initials style
+                    iconEl.innerHTML = `<img src="${user.picture}" class="w-full h-full rounded-full object-cover">`;
+                    iconEl.classList.remove('flex', 'items-center', 'justify-center', 'bg-gray-700');
+                } else {
+                    iconEl.innerText = initials;
+                    iconEl.innerHTML = initials; // Reset HTML
+                    iconEl.className = "fa-solid cursor-pointer hover:text-gray-300 transition-colors w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white";
+                }
             }
             if (popupName) popupName.innerText = user.name;
             if (popupEmail) popupEmail.innerText = user.email;
             if (popupAvatar) popupAvatar.innerText = initials;
         } else {
             if (nameEl) nameEl.innerText = "Guest";
-            if (iconEl) iconEl.classList.add('fa-user');
+            if (iconEl) {
+                iconEl.className = "fa-solid fa-user cursor-pointer hover:text-gray-300 transition-colors w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px]";
+                iconEl.innerText = "";
+            }
         }
     }
 
@@ -133,12 +169,12 @@ window.initBoard = function() {
     }
 
     // Throttled Emitters
+    // Increased frequency for smoother dragging on other screens
     const throttledMoveEmit = throttle((id, x, y) => {
         emitUpdate('MOVE', { id, x, y });
-    }, 30); // ~30ms update rate
+    }, 20); 
 
     const throttledResizeEmit = throttle((id, w, h, image = null) => {
-        // We only send image if provided (end of resize), otherwise just dims
         emitUpdate('RESIZE', { id, elementType: 'frame', w, h, image }); 
     }, 50);
 
@@ -148,7 +184,7 @@ window.initBoard = function() {
             y, 
             persona: myPersona 
         });
-    }, 20); // Sync cursor frequently enough
+    }, 16); // ~60fps sync attempt
 
     // --- CRITICAL: Namespace Storage keys with boardId to separate rooms ---
     const DRAWING_STORAGE_KEY = `whiteboardDrawings_${boardId}`;
@@ -602,10 +638,7 @@ window.initBoard = function() {
 
     // Helper to maintain consistent size of user cursors regardless of zoom level
     function updateRemoteCursorScales() {
-        // Cursors are inside workspace. If workspace scales, cursors scale. 
-        // We apply inverse scale to keep them constant visual size.
-        // We use translate3d inside animateRemoteCursors for position, so just update scale here.
-        // Actually animateRemoteCursors handles the scale per frame to ensure smoothness.
+        // Handled in animation loop
     }
 
 
@@ -975,11 +1008,11 @@ window.initBoard = function() {
             else toggle(userPopup, false);
         });
         
-        // Profile Modal (Uses Custom Alert for now as placeholder for full profile view)
+        // Profile Modal
         if (profileBtn) {
             profileBtn.onclick = () => {
                 if (currentUser) {
-                     window.showCustomAlert("Profile", `Logged in as: ${currentUser.name} (${currentUser.email})`, "info");
+                     window.showCustomAlert("Profile", `Logged in as: ${currentUser.name || currentUser.email}`, "info");
                 } else {
                      window.showCustomAlert("Guest Profile", "You are currently browsing as a guest.", "info");
                 }
@@ -1612,7 +1645,7 @@ window.initBoard = function() {
             // Create cursor element
             const el = document.createElement('div');
             // OPTIMIZED: use will-change for performance
-            el.className = 'remote-cursor absolute pointer-events-none flex items-start z-[999]';
+            el.className = 'remote-cursor absolute pointer-events-none flex items-start z-[9999]';
             el.style.left = '0';
             el.style.top = '0';
             // CRITICAL PARALLAX FIX: Set origin to top-left so scaling doesn't shift position relative to grid
@@ -2315,7 +2348,14 @@ window.initBoard = function() {
         const plus = document.createElement('i');
         plus.className = 'relative fas fa-plus -z-10 text-gray-400 hover:text-blue-500 cursor-pointer';
         plus.title = 'Add New Board';
-        plus.onclick = (e) => { e.stopPropagation(); addFrame(); };
+        plus.onclick = (e) => { 
+            e.stopPropagation(); 
+            // Add board relative to current view or current board
+            const offset = 50; 
+            const newX = parseFloat(frame.style.left) + width + offset;
+            const newY = parseFloat(frame.style.top);
+            addFrame(newX, newY); 
+        };
         header.appendChild(plus);
         frame.appendChild(header);
 
@@ -2491,13 +2531,36 @@ window.initBoard = function() {
         return frameData;
     }
 
-    function addFrame() {
+    function addFrame(startX = null, startY = null) {
         const width = 600, height = 400;
-        const center = getCenterPos();
-        const x = center.x - width / 2 + (Math.random() * 100 - 50);
-        const y = center.y - height / 2 + (Math.random() * 100 - 50);
+        let x, y;
         
-        const newFrame = createFrame(x, y, width, height, `Board ${frames.length + 1}`);
+        if (startX !== null && startY !== null) {
+            x = startX;
+            y = startY;
+        } else {
+            const center = getCenterPos();
+            x = center.x - width / 2 + (Math.random() * 100 - 50);
+            y = center.y - height / 2 + (Math.random() * 100 - 50);
+        }
+        
+        // --- INDEXING LOGIC ---
+        // Find the lowest available number for "Board X"
+        let nextIndex = 1;
+        const usedIndexes = new Set();
+        frames.forEach(f => {
+            const match = f.title.match(/^Board (\d+)$/);
+            if (match) {
+                usedIndexes.add(parseInt(match[1]));
+            }
+        });
+        
+        while (usedIndexes.has(nextIndex)) {
+            nextIndex++;
+        }
+        const title = `Board ${nextIndex}`;
+        
+        const newFrame = createFrame(x, y, width, height, title);
         
         pushHistory({
             type: 'ADD_ELEMENT',
@@ -2507,7 +2570,7 @@ window.initBoard = function() {
             parent: workspace
         });
         
-        emitUpdate('ADD', { elementType: 'frame', data: { id: newFrame.id, x, y, w: width, h: height, title: `Board ${frames.length}` } });
+        emitUpdate('ADD', { elementType: 'frame', data: { id: newFrame.id, x, y, w: width, h: height, title: title } });
     }
 
     /***********************
@@ -2905,8 +2968,14 @@ window.initBoard = function() {
         const newX = parseFloat(frame.element.style.left) + frame.width + offset;
         const newY = parseFloat(frame.element.style.top);
 
+        // Calculate a new title
+        let baseTitle = frame.title;
+        // Remove existing " (Copy)" suffix if present to avoid "Board 1 (Copy) (Copy)"
+        baseTitle = baseTitle.replace(/ \(Copy\)$/, ''); 
+        const newTitle = baseTitle + " (Copy)";
+
         // Create new frame
-        const newFrameData = createFrame(newX, newY, frame.width, frame.height, frame.title + " (Copy)");
+        const newFrameData = createFrame(newX, newY, frame.width, frame.height, newTitle);
 
         // Copy Canvas Content
         const sourceCanvas = frame.element.querySelector('canvas');
