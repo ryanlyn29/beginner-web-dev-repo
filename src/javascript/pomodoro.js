@@ -8,7 +8,6 @@
  *    even if the browser tab is closed or throttled.
  * 3. Auto-Start: Automatically starts the next phase (Work -> Break -> Work) for continuous flow.
  * 4. Smart Resume: Detects if timer expired while tab was closed and handles it immediately.
- * 5. Dynamic Resizing: Listens for events to resize container for games.
  */
 
 window.initPomodoro = function() {
@@ -67,8 +66,6 @@ window.initPomodoro = function() {
         pomodoroCount: 0,
         isPomodoroOpen: false,
         isGameViewActive: false,
-        gameWidth: '480px', // Default Menu Width
-        gameHeight: '260px', // Default Menu Height
         lastUpdated: Date.now()
     };
 
@@ -184,6 +181,9 @@ window.initPomodoro = function() {
         const expandedHeight = '380px'; 
         const expandedBorderRadius = '1.2rem'; 
         
+        const gameWidth = '450px';
+        const gameHeight = '550px';
+
         pomodoroContainer.style.top = '7.5%';
         pomodoroContainer.style.left = '50%'; 
         pomodoroContainer.style.transform = 'translateX(-50%)'; 
@@ -191,9 +191,8 @@ window.initPomodoro = function() {
         if (state.isPomodoroOpen) {
             // Expanded State
             if (state.isGameViewActive) {
-                // Use dynamic game size if active
-                pomodoroContainer.style.width = state.gameWidth || '450px';
-                pomodoroContainer.style.height = state.gameHeight || '550px';
+                pomodoroContainer.style.width = gameWidth;
+                pomodoroContainer.style.height = gameHeight;
             } else {
                 pomodoroContainer.style.width = expandedWidth;
                 pomodoroContainer.style.height = expandedHeight;
@@ -394,16 +393,6 @@ window.initPomodoro = function() {
     if(gamesToggleButton) {
         gamesToggleButton.onclick = () => toggleGameView();
     }
-
-    // LISTENER FOR GAME RESIZING
-    window.addEventListener('pomodoro-resize', (e) => {
-        if (e.detail) {
-            state.gameWidth = e.detail.width;
-            state.gameHeight = e.detail.height;
-            saveState();
-            renderPomodoro(); // Apply immediately
-        }
-    });
     
     // --- 9. INITIALIZATION EXECUTION ---
 
