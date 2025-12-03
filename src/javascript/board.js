@@ -68,6 +68,11 @@ window.initBoard = function() {
             console.error('Failed to fetch user session:', e);
             updateUserUI(null);
         }
+        
+        // Initialize Game Engine with User and Socket Context
+        if (window.Games && socket) {
+            window.Games.init(socket, currentUser || { id: myUserId, name: myPersona.name }, boardId);
+        }
     }
 
     function updateUserUI(user) {
@@ -124,6 +129,14 @@ window.initBoard = function() {
                 handleRemoteUpdate(data);
                 isRemoteUpdate = false;
             });
+            
+            // Listen for specific Game Actions
+            socket.on('game:action', (data) => {
+                if (window.Games) {
+                    window.Games.handleEvent(data);
+                }
+            });
+            
         } catch (e) {
             console.error('Socket connection failed:', e);
         }
@@ -3030,7 +3043,7 @@ window.initBoard = function() {
     });
 
     function init() {
-        // Fetch real user
+        // Fetch real user and init socket connection + games
         fetchUserSession();
 
         isRemoteUpdate = true; // Suppress emits during load
