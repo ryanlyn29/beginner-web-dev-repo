@@ -25,10 +25,11 @@
 
         /* --- Dotted Grid Background --- */
         #workspace {
-            /* Dot grid pattern */
-            background-image: radial-gradient(circle, #A2A2A2 1px, transparent 1px);
-            background-size: 24px 24px; /* Grid spacing */
-            /* Infinite feel is handled by the container size */
+            /* High performance dot grid */
+            background-image: radial-gradient(circle, #333 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+            /* Will-change optimizes rendering for zoom/pan */
+            will-change: transform; 
         }
         
         /* --- DARK MODE / LIGHT MODE VARIABLES --- */
@@ -40,7 +41,7 @@
         
         /* Light Mode Grid */
         body.light-mode #workspace {
-            background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
+            background-image: radial-gradient(circle, #cbd5e1 2px, transparent 2px);
         }
         
         /* --- Containers (Trackers, Sidebar, Settings, Context Menu) --- */
@@ -547,6 +548,8 @@
         .remote-cursor {
              /* Transition handled in JS via transform for performance */
              will-change: transform;
+             z-index: 999;
+             pointer-events: none;
         }
     </style>
 </head>
@@ -554,7 +557,7 @@
 <body>
     <div id="board-container" class="bg-[#100C08] relative overflow-hidden select-none transition-colors duration-300">
         <div id="scrollContainer" class="scroll-container custom-scroll ">
-            <div id="workspace" class="infinite-space relative origin-top-left transition-transform duration-75 ease-linear dot-grid">
+            <div id="workspace" class="infinite-space relative origin-top-left transition-transform duration-75 ease-linear">
                 <!-- SVG Layer for connecting lines -->
                 <svg id="edges-layer">
                     <defs>
