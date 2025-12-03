@@ -22,12 +22,25 @@
             min-height: 100vh;
             transition: background-color 0.3s, color 0.3s;
         }
+
+        /* --- Dotted Grid Background --- */
+        #workspace {
+            /* Dot grid pattern */
+            background-image: radial-gradient(circle, #333 1px, transparent 1px);
+            background-size: 24px 24px; /* Grid spacing */
+            /* Infinite feel is handled by the container size */
+        }
         
         /* --- DARK MODE / LIGHT MODE VARIABLES --- */
         
         /* Board Background */
         body.light-mode #board-container {
             background-color: #F9FAFB !important; /* gray-50 */
+        }
+        
+        /* Light Mode Grid */
+        body.light-mode #workspace {
+            background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
         }
         
         /* --- Containers (Trackers, Sidebar, Settings, Context Menu) --- */
@@ -532,7 +545,8 @@
         
         /* Remote Cursor Style */
         .remote-cursor {
-             /* Transition now handled in JS for optimal performance */
+             /* Transition handled in JS via transform for performance */
+             will-change: transform;
         }
     </style>
 </head>
@@ -540,7 +554,7 @@
 <body>
     <div id="board-container" class="bg-[#100C08] relative overflow-hidden select-none transition-colors duration-300">
         <div id="scrollContainer" class="scroll-container custom-scroll ">
-            <div id="workspace" class="infinite-space relative origin-top-left transition-transform duration-75 ease-linear">
+            <div id="workspace" class="infinite-space relative origin-top-left transition-transform duration-75 ease-linear dot-grid">
                 <!-- SVG Layer for connecting lines -->
                 <svg id="edges-layer">
                     <defs>
@@ -657,8 +671,9 @@
         </div>
 
         <div class="flex items-center gap-4 text-sm">
-            <div class="relative">
-                <i id="user-icon" class="fa-solid fa-user cursor-pointer hover:text-gray-300 transition-colors"></i>
+            <div class="relative flex items-center gap-2" id="user-display-area">
+                <span id="header-user-name" class="hidden md:inline font-semibold text-xs">Guest</span>
+                <i id="user-icon" class="fa-solid fa-user cursor-pointer hover:text-gray-300 transition-colors w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px]"></i>
             </div>
             <i id="gear-icon" class="fa-solid fa-gear cursor-pointer hover:rotate-90 transition-transform duration-500 text-md"></i>
             <div class="w-[1px] h-5 bg-gray-400 mx-1 rounded-4xl"></div>
@@ -721,12 +736,25 @@
                     Copy
                 </button>
             </div>
-            <div class="flex items-center gap-2 pt-2">
-                <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold">JS</div>
-                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold">AL</div>
-                <button id="share-plus-btn" class="w-8 h-8 rounded-full bg-[#222426] border border-[#333] flex items-center justify-center text-gray-400 hover:text-white text-xs">
-                    <i class="fa-solid fa-plus"></i>
-                </button>
+            
+             <!-- Invite Section -->
+            <div class="border-t border-[#222426] pt-3">
+                 <p class="text-[10px] uppercase font-bold text-gray-500 mb-2">Collaborators</p>
+                 <div class="flex items-center gap-2 mb-3">
+                    <input id="invite-email-input" type="email" placeholder="Add people by email..." class="w-full bg-[#1a1b1d] border border-[#222426] rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <button id="share-plus-btn" class="w-7 h-7 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white hover:bg-blue-500 text-xs">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                
+                <div id="collaborators-list" class="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scroll">
+                     <!-- Collaborators injected here -->
+                     <div class="flex items-center gap-2 text-xs">
+                         <div class="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center font-bold">JS</div>
+                         <span class="text-gray-300">John Smith</span>
+                         <span class="text-[10px] text-gray-500 ml-auto">Owner</span>
+                     </div>
+                </div>
             </div>
         </div>
     </div>
@@ -734,21 +762,21 @@
     <!-- USER POPUP -->
     <div id="user-popup" class="fixed top-[7.5%] right-32 z-[60] w-64 bg-[#100C08] border border-[#222426] rounded-2xl shadow-2xl hidden text-white">
         <div class="p-4 border-b border-[#222426] flex items-center gap-3 bg-[#151313] rounded-t-xl popup-header">
-            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">UL</div>
+            <div id="popup-user-avatar" class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">?</div>
             <div>
-                <div class="font-bold text-sm">User L</div>
-                <div class="text-xs text-gray-400">user@example.com</div>
+                <div id="popup-user-name" class="font-bold text-sm">Guest User</div>
+                <div id="popup-user-email" class="text-xs text-gray-400">guest@example.com</div>
             </div>
         </div>
         <div class="py-2">
-            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+            <button id="profile-btn" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
                 <i class="fa-solid fa-user mr-2 w-4"></i> Profile
             </button>
-            <button class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
+            <button id="settings-btn" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#1a1b1d] hover:text-white transition-colors">
                 <i class="fa-solid fa-gear mr-2 w-4"></i> Settings
             </button>
             <div class="border-t border-[#222426] my-1"></div>
-            <button class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#1a1b1d] transition-colors">
+            <button id="logout-btn" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#1a1b1d] transition-colors">
                 <i class="fa-solid fa-arrow-right-from-bracket mr-2 w-4"></i> Log Out
             </button>
         </div>
