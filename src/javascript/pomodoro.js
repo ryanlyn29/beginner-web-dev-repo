@@ -193,8 +193,8 @@ window.initPomodoro = function() {
             // Expanded State
             if (state.isGameViewActive) {
                 // Use dynamic dimensions from state (set by games.js events)
-                pomodoroContainer.style.width = state.gameWidth;
-                pomodoroContainer.style.height = state.gameHeight;
+                pomodoroContainer.style.width = expandedWidth;
+                pomodoroContainer.style.height = expandedHeight + "100px";
             } else {
                 pomodoroContainer.style.width = expandedWidth;
                 pomodoroContainer.style.height = expandedHeight;
