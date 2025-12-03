@@ -185,8 +185,8 @@ window.initPomodoro = function() {
         
         // LARGE Game Size (For Tic Tac Toe, RPS, Connect 4)
         // Significantly larger to provide immersive play area
-        const largeGameWidth = '750px';
-        const largeGameHeight = '800px';
+        const largeGameWidth = '700px';
+        const largeGameHeight = '750px';
 
         pomodoroContainer.style.top = '7.5%';
         pomodoroContainer.style.left = '50%'; 
