@@ -53,6 +53,15 @@ const Games = {
      * Called by board.js after user session and socket are ready.
      */
     init(socket, user, boardId) {
+        // If we are re-initializing with real data after a guest init, update state
+        if (this.initialized && socket) {
+            this.socket = socket;
+            this.currentUser = user || this.currentUser;
+            this.boardId = boardId || this.boardId;
+            console.log("🎮 Games Engine Re-Connected as", this.currentUser.name);
+            return;
+        }
+
         if (this.initialized) return;
         
         this.socket = socket;
@@ -64,13 +73,31 @@ const Games = {
         this.container = document.getElementById('active-game-container');
         this.backBtn = document.getElementById('back-to-games-btn');
 
-        if (!this.view || !this.selector) return;
+        if (!this.view || !this.selector) {
+            console.warn("Games UI elements not found");
+            return;
+        }
 
         this.setupBackButton();
         this.renderMenu();
         
         this.initialized = true;
         console.log("🎮 Games Engine Initialized for", this.currentUser.name);
+    },
+
+    /**
+     * Called by Pomodoro.js when the game view is opened.
+     * Ensures the menu is visible and rendered.
+     */
+    enable() {
+        if (!this.initialized) {
+            this.init(null, null, null);
+        }
+        
+        // Force show menu if no active game
+        if (!this.activeGame) {
+            this.showMenu();
+        }
     },
 
     setupBackButton() {
@@ -120,7 +147,9 @@ const Games = {
     },
 
     renderMenu() {
+        if (!this.selector) return;
         this.selector.innerHTML = '';
+        
         const games = [
             { id: 'connect4', name: 'Connect 4', icon: 'fa-circle-nodes', accent: 'text-blue-500', desc: '2 Player PvP' },
             { id: 'tictactoe', name: 'Tic Tac Toe', icon: 'fa-xmarks-lines', accent: 'text-cyan-400', desc: 'Classic PvP' },
@@ -161,20 +190,27 @@ const Games = {
             btn.onclick = () => this.startGame(g.id);
             this.selector.appendChild(btn);
         });
+        
+        // Add padding spacer
+        const spacer = document.createElement('div');
+        spacer.className = 'w-2 flex-shrink-0';
+        this.selector.appendChild(spacer);
     },
 
     showMenu() {
+        if (!this.selector) return;
         this.selector.style.display = 'flex';
         this.container.style.display = 'none';
-        this.backBtn.style.display = 'none';
-        // Re-render menu to replay animations
+        if (this.backBtn) this.backBtn.style.display = 'none';
+        
+        // Force re-render to restart animations
         this.renderMenu();
     },
 
     startGame(gameId) {
         this.selector.style.display = 'none';
         this.container.style.display = 'flex';
-        this.backBtn.style.display = 'flex';
+        if (this.backBtn) this.backBtn.style.display = 'flex';
         this.container.innerHTML = '';
         this.container.className = "w-full h-full flex flex-col items-center justify-center p-2 animate-soft-slide";
 
