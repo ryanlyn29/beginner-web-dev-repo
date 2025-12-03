@@ -1,11 +1,12 @@
 
 /**
- * POMODORO TIMER - UPDATED FOR GAMING
+ * POMODORO TIMER - UPDATED FOR GAMING & STALE CLOSURE FIX
  * 
  * Features:
  * 1. Persistence & Auto-Resume.
  * 2. Adaptive Sizing: Automatically expands significantly for specific PvP games.
  * 3. Game Engine Hooks: Detects game start/stop to resize container immediately.
+ * 4. Fixes stale closure issues causing unwanted collapsing.
  */
 
 window.initPomodoro = function() {
@@ -184,8 +185,8 @@ window.initPomodoro = function() {
         
         // LARGE Game Size (For Tic Tac Toe, RPS, Connect 4)
         // Significantly larger to provide immersive play area
-        const largeGameWidth = '700px';
-        const largeGameHeight = '750px';
+        const largeGameWidth = '750px';
+        const largeGameHeight = '800px';
 
         pomodoroContainer.style.top = '7.5%';
         pomodoroContainer.style.left = '50%'; 
@@ -255,6 +256,11 @@ window.initPomodoro = function() {
         }
     };
 
+    // CRITICAL FIX: Expose render function globally
+    // This allows the Game Engine hooks to call the *active* closure's render function,
+    // avoiding stale state issues where the timer might collapse unexpectedly.
+    window.pomodoroResizeHandler = renderPomodoro;
+
     const toggleGameView = (showGame = null) => {
         if (showGame === null) {
             state.isGameViewActive = !state.isGameViewActive;
@@ -283,7 +289,7 @@ window.initPomodoro = function() {
         renderPomodoro();
     };
 
-    // --- 7. TIMER LOGIC (The Core Fix) ---
+    // --- 7. TIMER LOGIC ---
 
     const tick = () => {
         if (!state.isRunning) return;
@@ -306,20 +312,13 @@ window.initPomodoro = function() {
     };
 
     const startTimer = () => {
-        // 1. Set Running Flag
         state.isRunning = true;
-        
-        // 2. Calculate Target Time (Now + Remaining)
-        // This ensures accurate counting even if execution lags
         state.targetTime = Date.now() + (state.remainingTime * 1000);
         
         saveState(); 
         updateDisplay(); 
 
-        // 3. Clear any existing interval to prevent stacking
         if (window.pomodoroIntervalId) clearInterval(window.pomodoroIntervalId);
-        
-        // 4. Start new interval
         window.pomodoroIntervalId = setInterval(tick, 1000);
     };
 
@@ -328,14 +327,12 @@ window.initPomodoro = function() {
         
         state.isRunning = false;
         
-        // Calculate exact remaining time before pausing
         const now = Date.now();
         if (state.targetTime) {
              state.remainingTime = Math.max(0, Math.ceil((state.targetTime - now) / 1000));
         }
-        state.targetTime = null; // Clear target
+        state.targetTime = null; 
 
-        // Stop Interval
         if (window.pomodoroIntervalId) clearInterval(window.pomodoroIntervalId);
         window.pomodoroIntervalId = null;
         
@@ -344,7 +341,7 @@ window.initPomodoro = function() {
     };
 
     const resetTimer = () => {
-        pauseTimer(); // Stop first
+        pauseTimer(); 
         
         if (state.currentPhase === 'pomodoro') {
             state.remainingTime = CONFIG.TIME_POMODORO;
@@ -370,24 +367,19 @@ window.initPomodoro = function() {
                 state.remainingTime = CONFIG.TIME_SHORT_BREAK;
             }
             
-            // Auto-open games on break if timer is expanded
             if (state.isPomodoroOpen) {
                 toggleGameView(true);
             }
             window.showCustomAlert("Pomodoro Session Complete!", "Great work! Starting your break now.", "success");
             
         } else {
-            // Break finished
             state.currentPhase = 'pomodoro';
             state.remainingTime = CONFIG.TIME_POMODORO;
-            
-            // Auto-hide games
             toggleGameView(false);
             window.showCustomAlert("Break is Over!", "Time to focus again.", "info");
         }
         
         updateDisplay();
-        // Auto-Start next phase
         startTimer();
     };
 
@@ -407,21 +399,21 @@ window.initPomodoro = function() {
     
     // --- 8. GAME ENGINE HOOKS ---
     // Detects when games start/stop to trigger resize logic
+    // Using window.pomodoroResizeHandler to ensure we use the ACTIVE closure
     if (window.Games && !window.Games._pomodoroHooked) {
         const originalStart = window.Games.startGame;
         const originalStop = window.Games.stopActiveGame;
 
         window.Games.startGame = function(id) {
-            // Call original logic
             originalStart.apply(window.Games, arguments);
-            // Trigger resize to fit the new game
-            renderPomodoro(); 
+            // Trigger resize via global handler
+            if (window.pomodoroResizeHandler) window.pomodoroResizeHandler();
         };
 
         window.Games.stopActiveGame = function() {
             originalStop.apply(window.Games, arguments);
-            // Trigger resize back to menu
-            renderPomodoro(); 
+            // Trigger resize via global handler
+            if (window.pomodoroResizeHandler) window.pomodoroResizeHandler();
         };
 
         window.Games._pomodoroHooked = true;
@@ -447,11 +439,9 @@ window.initPomodoro = function() {
 
     // CHECK EXPIRATION OR RESUME
     if (state.hasExpiredWhileAway) {
-        // Time passed while tab was closed
         delete state.hasExpiredWhileAway;
         handlePhaseEnd(); 
     } else if (state.isRunning) {
-        // Resume Interrupted Timer
         if (window.pomodoroIntervalId) clearInterval(window.pomodoroIntervalId);
         window.pomodoroIntervalId = setInterval(tick, 1000);
     }
@@ -460,7 +450,7 @@ window.initPomodoro = function() {
     updateDisplay();
     renderPomodoro();
     
-    // Resume Game View visibility
+    // Resume Game View visibility and ensure menu is shown
     if (state.isGameViewActive) {
         gameView.classList.remove('hidden');
         timerView.classList.add('hidden');
