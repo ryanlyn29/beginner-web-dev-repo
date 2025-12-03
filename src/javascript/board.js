@@ -1,4 +1,5 @@
 
+
 /************************************************************
  * INFINITE WHITEBOARD IMPLEMENTATION WITH SOCKET.IO
  ************************************************************/
@@ -24,6 +25,7 @@ window.initBoard = function() {
     let myPersona = GUEST_PERSONAS[Math.floor(Math.random() * GUEST_PERSONAS.length)];
     let myUserId = Date.now().toString(36) + Math.random().toString(36).substr(2);
     let currentUser = null; // Stores actual user object from backend
+    let boardOwner = null; // Stores owner info: { name, email, id }
 
     // Parse URL Parameters
     const params = new URLSearchParams(window.location.search);
@@ -69,6 +71,13 @@ window.initBoard = function() {
             updateUserUI(null);
         }
         
+        // Ensure owner is set after fetching session
+        if (!boardOwner && currentUser) {
+            boardOwner = { name: currentUser.name, email: currentUser.email, id: myUserId };
+        } else if (!boardOwner) {
+            boardOwner = { name: 'Guest Owner', email: 'guest@example.com', id: myUserId };
+        }
+
         // Initialize Game Engine with User and Socket Context
         if (window.Games && socket) {
             window.Games.init(socket, currentUser || { id: myUserId, name: myPersona.name }, boardId);
@@ -335,6 +344,19 @@ window.initBoard = function() {
     const settingsModal = document.getElementById('settings-modal');
     const settingsCard = document.getElementById('settings-card');
     const settingsBackdrop = document.getElementById('settings-backdrop');
+    
+    // Profile Elements
+    const profileModal = document.getElementById('profile-modal');
+    const profileCard = document.getElementById('profile-card');
+    const profileBackdrop = document.getElementById('profile-backdrop');
+    const profileNameInput = document.getElementById('profile-name-input');
+    const profileEmailInput = document.getElementById('profile-email-input');
+    const profileColorPicker = document.getElementById('profile-color-picker');
+    const profileAvatar = document.getElementById('profile-modal-avatar');
+    const closeProfileBtn = document.getElementById('close-profile');
+    const cancelProfileBtn = document.getElementById('cancel-profile-btn');
+    const saveProfileBtn = document.getElementById('save-profile-btn');
+    
     const gearIcon = document.getElementById('gear-icon');
     const closeSettingsBtn = document.getElementById('close-settings');
     const darkModeToggle = document.getElementById('dark-mode-toggle');
@@ -928,16 +950,23 @@ window.initBoard = function() {
         const toggle = (modal, show) => {
             if (show) {
                 modal.classList.remove('hidden');
-                if(modal.id === 'settings-modal') {
+                // Remove generic hidden, handle specific transition classes for modals
+                if(modal.id === 'settings-modal' || modal.id === 'profile-modal') {
                     modal.classList.remove('opacity-0', 'pointer-events-none');
-                    settingsCard.classList.remove('scale-95');
-                    settingsCard.classList.add('scale-100');
+                    const card = modal.querySelector('div[id$="-card"]');
+                    if(card) {
+                        card.classList.remove('scale-95');
+                        card.classList.add('scale-100');
+                    }
                 }
             } else {
-                if(modal.id === 'settings-modal') {
+                if(modal.id === 'settings-modal' || modal.id === 'profile-modal') {
                      modal.classList.add('opacity-0', 'pointer-events-none');
-                     settingsCard.classList.remove('scale-100');
-                     settingsCard.classList.add('scale-95');
+                     const card = modal.querySelector('div[id$="-card"]');
+                     if(card) {
+                        card.classList.remove('scale-100');
+                        card.classList.add('scale-95');
+                     }
                 } else {
                     modal.classList.add('hidden');
                 }
@@ -954,36 +983,61 @@ window.initBoard = function() {
         if (shareBtn) shareBtn.addEventListener('click', (e) => { 
             e.stopPropagation();
             userPopup.classList.add('hidden'); // Close others
+            
+            // Populate Owner Info in Share Popup
+            if (collaboratorsList) {
+                collaboratorsList.innerHTML = '';
+                // Add Owner
+                if (boardOwner) {
+                    const initial = (boardOwner.name || boardOwner.email || 'O')[0].toUpperCase();
+                    const isMe = boardOwner.id === myUserId;
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-2 text-xs mb-2 pb-2 border-b border-[#222426]';
+                    div.innerHTML = `
+                         <div class="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center font-bold text-white">${initial}</div>
+                         <span class="text-gray-300">${boardOwner.name}</span>
+                         <span class="text-[10px] text-gray-500 ml-auto">${isMe ? 'You (Owner)' : 'Owner'}</span>
+                    `;
+                    collaboratorsList.appendChild(div);
+                }
+            }
+
             if (sharePopup.classList.contains('hidden')) toggle(sharePopup, true);
             else toggle(sharePopup, false);
         });
         if (closeShareBtn) closeShareBtn.addEventListener('click', () => toggle(sharePopup, false));
         
-        // Share - Add Collaborator Logic (Client Simulation)
-        if (sharePlusBtn && inviteEmailInput && collaboratorsList) {
-            const addCollaborator = () => {
+        // Share - Real Invite
+        if (sharePlusBtn && inviteEmailInput) {
+            const sendInvite = async () => {
                 const email = inviteEmailInput.value.trim();
                 if (email && email.includes('@')) {
-                    // Create dummy entry
-                    const initial = email[0].toUpperCase();
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center gap-2 text-xs animate-bounce-in';
-                    div.innerHTML = `
-                         <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center font-bold">${initial}</div>
-                         <span class="text-gray-300">${email}</span>
-                         <span class="text-[10px] text-gray-500 ml-auto">Viewer</span>
-                    `;
-                    collaboratorsList.appendChild(div);
-                    inviteEmailInput.value = '';
-                    window.showCustomAlert("Invite Sent", `Invited ${email}`, "success");
+                    sharePlusBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                    try {
+                        const res = await fetch('/api/invite', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, boardId: boardId })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                             window.showCustomAlert("Invite Sent", `Invitation sent to ${email}`, "success");
+                             inviteEmailInput.value = '';
+                        } else {
+                             window.showCustomAlert("Error", "Failed to send invite", "info");
+                        }
+                    } catch (e) {
+                         window.showCustomAlert("Error", "Network error sending invite", "info");
+                    }
+                    sharePlusBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
                 } else {
                     window.showCustomAlert("Invalid Email", "Please enter a valid email", "info");
                 }
             };
 
-            sharePlusBtn.addEventListener('click', addCollaborator);
+            sharePlusBtn.addEventListener('click', sendInvite);
             inviteEmailInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') addCollaborator();
+                if (e.key === 'Enter') sendInvite();
             });
         }
         
@@ -1010,16 +1064,60 @@ window.initBoard = function() {
             else toggle(userPopup, false);
         });
         
-        // Profile Modal
+        // Profile Logic
+        const initProfileModal = () => {
+             if(currentUser) {
+                 profileNameInput.value = currentUser.name || '';
+                 profileEmailInput.value = currentUser.email || '';
+                 
+                 // Initial
+                 const initials = (currentUser.name || currentUser.email).substring(0, 2).toUpperCase();
+                 profileAvatar.innerText = initials;
+                 if(currentUser.picture && !currentUser.picture.includes('s.gravatar.com')) {
+                      profileAvatar.innerHTML = `<img src="${currentUser.picture}" class="w-full h-full rounded-full object-cover">`;
+                 }
+             }
+             
+             // Render Colors
+             const colors = ['#a6feb0', '#ffc9c9', '#ccdeff', '#e2d5ff', '#fff', '#fcd34d'];
+             profileColorPicker.innerHTML = '';
+             colors.forEach(c => {
+                 const dot = document.createElement('div');
+                 dot.className = `w-6 h-6 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${myPersona.iconColor === c ? 'border-blue-500 scale-110' : 'border-transparent'}`;
+                 dot.style.backgroundColor = c;
+                 dot.onclick = () => {
+                      myPersona.iconColor = c;
+                      // Refresh picker UI
+                      Array.from(profileColorPicker.children).forEach(child => child.classList.remove('border-blue-500', 'scale-110'));
+                      dot.classList.add('border-blue-500', 'scale-110');
+                 };
+                 profileColorPicker.appendChild(dot);
+             });
+        };
+
         if (profileBtn) {
             profileBtn.onclick = () => {
-                if (currentUser) {
-                     window.showCustomAlert("Profile", `Logged in as: ${currentUser.name || currentUser.email}`, "info");
-                } else {
-                     window.showCustomAlert("Guest Profile", "You are currently browsing as a guest.", "info");
-                }
-                userPopup.classList.add('hidden');
+                toggle(userPopup, false);
+                initProfileModal();
+                toggle(profileModal, true);
             }
+        }
+        
+        if (closeProfileBtn) closeProfileBtn.onclick = () => toggle(profileModal, false);
+        if (cancelProfileBtn) cancelProfileBtn.onclick = () => toggle(profileModal, false);
+        if (profileBackdrop) profileBackdrop.onclick = () => toggle(profileModal, false);
+        
+        if (saveProfileBtn) {
+            saveProfileBtn.onclick = () => {
+                const newName = profileNameInput.value.trim();
+                if(newName) {
+                    if(currentUser) currentUser.name = newName;
+                    myPersona.name = newName;
+                    updateUserUI(currentUser);
+                    window.showCustomAlert("Profile Updated", "Your changes have been saved.", "success");
+                    toggle(profileModal, false);
+                }
+            };
         }
 
         // Logout
@@ -1043,6 +1141,7 @@ window.initBoard = function() {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 toggle(settingsModal, false);
+                toggle(profileModal, false);
                 sharePopup.classList.add('hidden');
                 userPopup.classList.add('hidden');
             }
@@ -1489,6 +1588,7 @@ window.initBoard = function() {
 
         const state = {
             timestamp: Date.now(),
+            owner: boardOwner, // Save owner
             frames: frames.map(f => ({
                 id: f.id,
                 x: f.element.style.left,
@@ -1537,6 +1637,11 @@ window.initBoard = function() {
         if (!json) return false;
 
         const state = JSON.parse(json);
+
+        // Restore Owner
+        if (state.owner) {
+            boardOwner = state.owner;
+        }
 
         // Clear current board
         workspace.innerHTML = '';
