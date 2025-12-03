@@ -1191,3 +1191,13 @@ class DinoRunner {
     onRemoteData() {}
     destroy() { this.running = false; }
 }
+
+// Explicitly attach to window
+window.Games = Games;
+
+// Initialization Helper
+window.initGames = function() {
+    if (window.Games) {
+        window.Games.enable();
+    }
+};
