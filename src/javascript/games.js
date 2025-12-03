@@ -1,26 +1,39 @@
+
 /**
  * games.js
  * Multiplayer Game Engine for Whiteflow.
  * 
- * Updates:
+ * Features:
  * - Event-driven architecture for Socket.IO integration.
- * - Real-time multiplayer Connect 4 with user identity.
- * - Logic-fixed Candy Match with gravity, turn limits, and no-gap generation.
+ * - Multiplayer Connect 4, Tic-Tac-Toe, Rock Paper Scissors.
+ * - Solo Candy Match (Logic Fixed) & Memory Game.
  */
 
 // Inject styles for animations and game-specific UI
-const gameStyles = document.createElement('style');
-gameStyles.innerHTML = `
-@keyframes softSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes popIn { 0% { transform: scale(0.5); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
-@keyframes dropDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.animate-soft-slide { animation: softSlideUp 0.4s ease-out forwards; }
-.animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-.animate-drop { animation: dropDown 0.3s ease-out forwards; }
-.game-slot-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1) !important; }
-.c4-cell { will-change: transform, background-color; }
-`;
-document.head.appendChild(gameStyles);
+const styleId = 'whiteflow-game-styles';
+if (!document.getElementById(styleId)) {
+    const gameStyles = document.createElement('style');
+    gameStyles.id = styleId;
+    gameStyles.innerHTML = `
+    @keyframes softSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn { 0% { transform: scale(0.5); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    @keyframes dropDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .animate-soft-slide { animation: softSlideUp 0.4s ease-out forwards; }
+    .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    .animate-drop { animation: dropDown 0.3s ease-out forwards; }
+    .animate-shake { animation: shake 0.5s ease-in-out infinite; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    
+    .game-slot-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1) !important; }
+    .c4-cell { will-change: transform, background-color; }
+    .ttt-cell { transition: all 0.2s; }
+    .ttt-cell:hover { background-color: rgba(255,255,255,0.05); }
+    `;
+    document.head.appendChild(gameStyles);
+}
 
 const Games = {
     socket: null,
@@ -72,9 +85,9 @@ const Games = {
         this.backBtn.innerHTML = '<i class="fa-solid fa-arrow-left text-[10px]"></i> <span>Exit Game</span>';
         
         this.backBtn.onclick = () => {
-            // If in a multiplayer game, notify others we are leaving context (optional)
-            if (this.activeGame && this.activeGame.id === 'connect4') {
-                this.send('C4_LEAVE', {}); 
+            // Notify leave if applicable
+            if (this.activeGame && typeof this.activeGame.onLeave === 'function') {
+                this.activeGame.onLeave();
             }
             this.stopActiveGame();
             this.showMenu();
@@ -110,6 +123,8 @@ const Games = {
         this.selector.innerHTML = '';
         const games = [
             { id: 'connect4', name: 'Connect 4', icon: 'fa-circle-nodes', accent: 'text-blue-500', desc: '2 Player PvP' },
+            { id: 'tictactoe', name: 'Tic Tac Toe', icon: 'fa-xmarks-lines', accent: 'text-cyan-400', desc: 'Classic PvP' },
+            { id: 'rps', name: 'Rock Paper Scissors', icon: 'fa-hand-scissors', accent: 'text-yellow-400', desc: 'Quick PvP' },
             { id: 'match3', name: 'Candy Match', icon: 'fa-candy-cane', accent: 'text-pink-500', desc: 'Score Attack' },
             { id: 'memory', name: 'Memory', icon: 'fa-brain', accent: 'text-emerald-500', desc: 'Solo Puzzle' },
             { id: 'runner', name: 'Dino Run', icon: 'fa-dragon', accent: 'text-orange-500', desc: 'Endless' }
@@ -168,6 +183,12 @@ const Games = {
             case 'connect4':
                 this.activeGame = new ConnectFour(this.container, this.currentUser, (t, p) => this.send(t, p));
                 break;
+            case 'tictactoe':
+                this.activeGame = new TicTacToe(this.container, this.currentUser, (t, p) => this.send(t, p));
+                break;
+            case 'rps':
+                this.activeGame = new RockPaperScissors(this.container, this.currentUser, (t, p) => this.send(t, p));
+                break;
             case 'match3':
                 this.activeGame = new MatchThree(this.container, this.currentUser);
                 break;
@@ -190,87 +211,25 @@ const Games = {
 };
 
 /* =========================================
-   GAME 1: CONNECT FOUR (MULTIPLAYER)
+   BASE CLASS: MULTIPLAYER GAME
    ========================================= */
-class ConnectFour {
+class MultiplayerGame {
     constructor(root, currentUser, emitFn) {
         this.root = root;
         this.currentUser = currentUser;
         this.emit = emitFn;
-        this.id = 'connect4';
-        
-        this.rows = 6;
-        this.cols = 7;
-        this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
-        
-        this.players = { 1: null, 2: null }; // 1: Red, 2: Yellow (Stores User Objects)
-        this.turn = 1; 
+        this.players = { 1: null, 2: null };
+        this.turn = 1;
         this.gameOver = false;
-        
-        this.initUI();
-        
-        // Announce presence and request current state from anyone in the room
-        this.emit('C4_STATE_REQ', {});
     }
 
-    initUI() {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex flex-col items-center gap-6 w-full h-full justify-center max-w-lg';
-
-        // --- Player Header ---
-        const header = document.createElement('div');
-        header.className = 'flex justify-between w-full px-4 items-center';
-        
-        // Player 1 (Red)
-        this.p1Slot = this.createPlayerSlot('Red', 'bg-red-500', 1);
-        // VS
-        const vs = document.createElement('div');
-        vs.className = 'text-gray-600 font-bold text-xl italic';
-        vs.innerText = 'VS';
-        // Player 2 (Yellow)
-        this.p2Slot = this.createPlayerSlot('Yellow', 'bg-yellow-400', 2);
-
-        header.appendChild(this.p1Slot.el);
-        header.appendChild(vs);
-        header.appendChild(this.p2Slot.el);
-        wrapper.appendChild(header);
-
-        // --- Status Bar ---
-        this.statusEl = document.createElement('div');
-        this.statusEl.className = 'text-sm font-mono text-gray-300 bg-[#222426] px-4 py-2 rounded-full border border-[#333] transition-all';
-        this.statusEl.innerText = 'Waiting for players...';
-        wrapper.appendChild(this.statusEl);
-
-        // --- The Board ---
-        const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-7 gap-2 bg-blue-900 p-3 rounded-xl border-b-8 border-blue-950 shadow-2xl relative';
-        
-        this.cells = [];
-        for (let r = 0; r < this.rows; r++) {
-            for (let c = 0; c < this.cols; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0f172a] shadow-inner transition-all duration-300 c4-cell';
-                cell.dataset.r = r;
-                cell.dataset.c = c;
-                
-                // Hover effect only for top row or entire col tracking logic could be added
-                cell.onclick = () => this.handleLocalClick(c);
-                
-                grid.appendChild(cell);
-                this.cells.push(cell);
-            }
-        }
-        wrapper.appendChild(grid);
-        this.root.appendChild(wrapper);
-    }
-
-    createPlayerSlot(colorName, bgClass, pid) {
+    createPlayerSlot(colorName, bgClass, pid, iconClass = 'fa-user') {
         const el = document.createElement('div');
         el.className = 'flex flex-col items-center gap-2 p-3 rounded-lg border border-transparent transition-all duration-300';
         
         const avatar = document.createElement('div');
         avatar.className = `w-12 h-12 rounded-full ${bgClass} flex items-center justify-center text-black font-bold text-xl shadow-lg`;
-        avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
+        avatar.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
         
         const name = document.createElement('div');
         name.className = 'text-xs text-gray-400 font-bold uppercase';
@@ -279,7 +238,7 @@ class ConnectFour {
         const btn = document.createElement('button');
         btn.className = 'text-[10px] bg-[#333] hover:bg-[#444] text-white px-3 py-1 rounded-full transition-colors mt-1';
         btn.innerText = 'Sit Here';
-        btn.onclick = () => this.emit('C4_SIT', { seat: pid });
+        btn.onclick = () => this.handleSit(pid);
 
         el.appendChild(avatar);
         el.appendChild(name);
@@ -288,40 +247,109 @@ class ConnectFour {
         return { el, avatar, name, btn };
     }
 
-    updatePlayerUI() {
-        const updateSlot = (slot, player, isActive) => {
-            if (player) {
-                // If player is me, indicate that
-                const isMe = player.id === this.currentUser.id;
-                slot.name.innerText = isMe ? "You" : (player.userName || player.name);
-                slot.avatar.innerHTML = (player.userName || player.name).substring(0,2).toUpperCase();
-                slot.btn.style.display = 'none'; // Seat taken
-                if (isActive) {
-                    slot.el.classList.add('game-slot-active');
-                } else {
-                    slot.el.classList.remove('game-slot-active');
-                }
-            } else {
-                slot.name.innerText = 'Empty';
-                slot.avatar.innerHTML = '<i class="fa-solid fa-plus"></i>';
-                slot.btn.style.display = 'block';
-                slot.el.classList.remove('game-slot-active');
+    handleSit(seatId) {
+        this.emit(this.prefix + '_SIT', { seat: seatId });
+    }
+
+    updatePlayerSlotUI(slot, player, isActive) {
+        if (player) {
+            const isMe = player.id === this.currentUser.id;
+            slot.name.innerText = isMe ? "You" : (player.userName || player.name);
+            slot.avatar.innerHTML = (player.userName || player.name).substring(0,2).toUpperCase();
+            slot.btn.style.display = 'none';
+            if (isActive) slot.el.classList.add('game-slot-active');
+            else slot.el.classList.remove('game-slot-active');
+            slot.el.style.opacity = isActive ? '1' : '0.7';
+        } else {
+            slot.name.innerText = 'Empty';
+            slot.avatar.innerHTML = '<i class="fa-solid fa-plus"></i>';
+            slot.btn.style.display = 'block';
+            slot.el.classList.remove('game-slot-active');
+            slot.el.style.opacity = '0.5';
+        }
+    }
+
+    processCommonEvents(data) {
+        if (data.type === this.prefix + '_SIT') {
+            const { seat, user } = data.payload;
+            this.players[seat] = user;
+            this.updatePlayerUI();
+        } else if (data.type === this.prefix + '_LEAVE') {
+            if (this.players[1] && this.players[1].id === data.userId) this.players[1] = null;
+            if (this.players[2] && this.players[2].id === data.userId) this.players[2] = null;
+            this.updatePlayerUI();
+        }
+    }
+
+    onLeave() {
+        this.emit(this.prefix + '_LEAVE', {});
+    }
+}
+
+/* =========================================
+   GAME 1: CONNECT FOUR
+   ========================================= */
+class ConnectFour extends MultiplayerGame {
+    constructor(root, currentUser, emitFn) {
+        super(root, currentUser, emitFn);
+        this.id = 'connect4';
+        this.prefix = 'C4';
+        this.rows = 6;
+        this.cols = 7;
+        this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
+        
+        this.initUI();
+        this.emit('C4_STATE_REQ', {});
+    }
+
+    initUI() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center gap-6 w-full h-full justify-center max-w-lg';
+
+        const header = document.createElement('div');
+        header.className = 'flex justify-between w-full px-4 items-center';
+        
+        this.p1Slot = this.createPlayerSlot('Red', 'bg-red-500', 1);
+        const vs = document.createElement('div');
+        vs.className = 'text-gray-600 font-bold text-xl italic';
+        vs.innerText = 'VS';
+        this.p2Slot = this.createPlayerSlot('Yellow', 'bg-yellow-400', 2);
+
+        header.appendChild(this.p1Slot.el);
+        header.appendChild(vs);
+        header.appendChild(this.p2Slot.el);
+        wrapper.appendChild(header);
+
+        this.statusEl = document.createElement('div');
+        this.statusEl.className = 'text-sm font-mono text-gray-300 bg-[#222426] px-4 py-2 rounded-full border border-[#333] transition-all';
+        this.statusEl.innerText = 'Waiting for players...';
+        wrapper.appendChild(this.statusEl);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-7 gap-2 bg-blue-900 p-3 rounded-xl border-b-8 border-blue-950 shadow-2xl relative';
+        
+        this.cells = [];
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0f172a] shadow-inner transition-all duration-300 c4-cell cursor-pointer';
+                cell.onclick = () => this.handleLocalClick(c);
+                grid.appendChild(cell);
+                this.cells.push(cell);
             }
-            
-            // Turn opacity visual
-            slot.el.style.opacity = isActive ? '1' : (player ? '0.7' : '0.5');
-        };
+        }
+        wrapper.appendChild(grid);
+        this.root.appendChild(wrapper);
+    }
 
-        updateSlot(this.p1Slot, this.players[1], this.turn === 1 && !this.gameOver);
-        updateSlot(this.p2Slot, this.players[2], this.turn === 2 && !this.gameOver);
+    updatePlayerUI() {
+        this.updatePlayerSlotUI(this.p1Slot, this.players[1], this.turn === 1 && !this.gameOver);
+        this.updatePlayerSlotUI(this.p2Slot, this.players[2], this.turn === 2 && !this.gameOver);
 
-        // Status Text
         if (!this.players[1] || !this.players[2]) {
             this.statusEl.innerText = 'Waiting for opponent...';
             this.statusEl.className = 'text-sm font-mono text-gray-300 bg-[#222426] px-4 py-2 rounded-full border border-[#333]';
-        } else if (this.gameOver) {
-            // Text set by game over logic
-        } else {
+        } else if (!this.gameOver) {
             const isMyTurn = this.players[this.turn]?.id === this.currentUser.id;
             this.statusEl.innerText = isMyTurn ? "YOUR TURN" : `${this.players[this.turn].name || 'Opponent'}'s Turn`;
             this.statusEl.className = `text-sm font-mono px-4 py-2 rounded-full border border-[#333] transition-colors ${isMyTurn ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-[#222426] text-gray-400'}`;
@@ -330,47 +358,25 @@ class ConnectFour {
 
     handleLocalClick(col) {
         if (this.gameOver) return;
-        
-        // 1. Check if I am a player
         const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
         
         if (mySeat === 0) {
             window.showCustomAlert("Spectator", "You are spectating. Click 'Sit Here' to play.", "info");
             return;
         }
-
-        // 2. Validate Turn
-        if (this.turn !== mySeat) {
-            // Not my turn
-            return;
-        }
+        if (this.turn !== mySeat) return;
         
-        // 3. Emit move
         this.emit('C4_MOVE', { col: col, player: mySeat });
-        
-        // Optimistic update
-        // this.performMove(col, mySeat); // Let's wait for server echo for simpler synchronization in this architecture
     }
 
     onRemoteData(data) {
-        if (data.type === 'C4_SIT') {
-            const { seat, user } = data.payload;
-            this.players[seat] = user;
-            this.updatePlayerUI();
-            
-            // If I am the other player, I should send my state so they sync up?
-            // Or if I am sitting, I just requested it.
-            // Simplified: The room acts as truth.
-        }
-        else if (data.type === 'C4_MOVE') {
+        if (data.type.startsWith('C4_')) this.processCommonEvents(data);
+
+        if (data.type === 'C4_MOVE') {
             this.performMove(data.payload.col, data.payload.player);
-        }
-        else if (data.type === 'C4_RESET') {
+        } else if (data.type === 'C4_RESET') {
             this.resetBoard();
-        }
-        else if (data.type === 'C4_STATE_REQ') {
-            // A new player joined and asked for state. 
-            // If I am player 1 (host-ish), I reply.
+        } else if (data.type === 'C4_STATE_REQ') {
             if (this.players[1] && this.players[1].id === this.currentUser.id) {
                 this.emit('C4_STATE_SYNC', {
                     players: this.players,
@@ -379,9 +385,7 @@ class ConnectFour {
                     gameOver: this.gameOver
                 });
             }
-        }
-        else if (data.type === 'C4_STATE_SYNC') {
-            // Received full state
+        } else if (data.type === 'C4_STATE_SYNC') {
             this.players = data.payload.players;
             this.board = data.payload.board;
             this.turn = data.payload.turn;
@@ -389,16 +393,9 @@ class ConnectFour {
             this.redrawBoard();
             this.updatePlayerUI();
         }
-        else if (data.type === 'C4_LEAVE') {
-            // Reset the player slot if someone leaves
-            if (this.players[1] && this.players[1].id === data.userId) this.players[1] = null;
-            if (this.players[2] && this.players[2].id === data.userId) this.players[2] = null;
-            this.updatePlayerUI();
-        }
     }
 
     performMove(col, playerIdx) {
-        // Find drop row
         let r = -1;
         for (let i = this.rows - 1; i >= 0; i--) {
             if (this.board[i][col] === 0) {
@@ -406,33 +403,23 @@ class ConnectFour {
                 break;
             }
         }
-        if (r === -1) return; // Column full
+        if (r === -1) return;
 
-        // Update State
         this.board[r][col] = playerIdx;
-        
-        // Animate Drop
         const cell = this.cells[r * this.cols + col];
         cell.classList.remove('bg-[#0f172a]');
         cell.classList.add(playerIdx === 1 ? 'bg-red-500' : 'bg-yellow-400');
         cell.classList.add('animate-pop');
 
-        // Check Win
         if (this.checkWin(r, col, playerIdx)) {
             this.gameOver = true;
-            this.statusEl.innerText = `${this.players[playerIdx].name || 'Player'} Wins!`;
+            this.statusEl.innerText = `${this.players[playerIdx].name} Wins!`;
             this.statusEl.className = 'text-sm font-bold bg-green-900/50 text-green-400 px-4 py-2 rounded-full border border-green-700';
-            
-            // Auto restart countdown if I am player 1
-            if (this.players[1] && this.players[1].id === this.currentUser.id) {
-                setTimeout(() => this.emit('C4_RESET', {}), 5000);
-            }
+            if (this.players[1] && this.players[1].id === this.currentUser.id) setTimeout(() => this.emit('C4_RESET', {}), 5000);
         } else if (this.board.every(row => row.every(c => c !== 0))) {
             this.gameOver = true;
             this.statusEl.innerText = "Draw!";
-            if (this.players[1] && this.players[1].id === this.currentUser.id) {
-                setTimeout(() => this.emit('C4_RESET', {}), 5000);
-            }
+            if (this.players[1] && this.players[1].id === this.currentUser.id) setTimeout(() => this.emit('C4_RESET', {}), 5000);
         } else {
             this.turn = playerIdx === 1 ? 2 : 1;
         }
@@ -444,20 +431,15 @@ class ConnectFour {
             const r = Math.floor(i / this.cols);
             const c = i % this.cols;
             const val = this.board[r][c];
-            
-            // Clean classes
-            cell.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full shadow-inner transition-all duration-300 c4-cell';
-            
-            if (val === 0) cell.classList.add('bg-[#0f172a]');
-            else if (val === 1) cell.classList.add('bg-red-500');
-            else if (val === 2) cell.classList.add('bg-yellow-400');
+            cell.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full shadow-inner transition-all duration-300 c4-cell cursor-pointer ' + 
+                             (val === 0 ? 'bg-[#0f172a]' : (val === 1 ? 'bg-red-500' : 'bg-yellow-400'));
         });
     }
 
     resetBoard() {
         this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
         this.gameOver = false;
-        this.turn = 1; // Red starts
+        this.turn = 1;
         this.redrawBoard();
         this.updatePlayerUI();
     }
@@ -479,14 +461,320 @@ class ConnectFour {
             return count >= 4;
         });
     }
-
-    destroy() {
-        // Optional cleanup
-    }
+    destroy() {}
 }
 
 /* =========================================
-   GAME 2: CANDY MATCH (LOGIC FIXED)
+   GAME 2: TIC TAC TOE
+   ========================================= */
+class TicTacToe extends MultiplayerGame {
+    constructor(root, currentUser, emitFn) {
+        super(root, currentUser, emitFn);
+        this.id = 'tictactoe';
+        this.prefix = 'TTT';
+        this.board = Array(9).fill(null);
+        this.initUI();
+        this.emit('TTT_STATE_REQ', {});
+    }
+
+    initUI() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center gap-6 w-full h-full justify-center max-w-sm';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'flex justify-between w-full px-2 items-center';
+        this.p1Slot = this.createPlayerSlot('Cyan', 'bg-cyan-500', 1, 'fa-xmark'); // Player X
+        const vs = document.createElement('div');
+        vs.className = 'text-gray-600 font-bold text-xl italic';
+        vs.innerText = 'VS';
+        this.p2Slot = this.createPlayerSlot('Pink', 'bg-pink-500', 2, 'fa-o'); // Player O
+        header.appendChild(this.p1Slot.el);
+        header.appendChild(vs);
+        header.appendChild(this.p2Slot.el);
+        wrapper.appendChild(header);
+
+        // Status
+        this.statusEl = document.createElement('div');
+        this.statusEl.className = 'text-sm font-mono text-gray-300 bg-[#222426] px-4 py-2 rounded-full border border-[#333] transition-all';
+        this.statusEl.innerText = 'Waiting for players...';
+        wrapper.appendChild(this.statusEl);
+
+        // Grid
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-3 gap-2 bg-[#222426] p-2 rounded-xl';
+        
+        this.cells = [];
+        for(let i=0; i<9; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'w-20 h-20 bg-[#151313] rounded-lg flex items-center justify-center text-4xl font-bold cursor-pointer ttt-cell hover:bg-[#1a1b1d]';
+            cell.onclick = () => this.handleMove(i);
+            this.cells.push(cell);
+            grid.appendChild(cell);
+        }
+        wrapper.appendChild(grid);
+        this.root.appendChild(wrapper);
+    }
+
+    updatePlayerUI() {
+        this.updatePlayerSlotUI(this.p1Slot, this.players[1], this.turn === 1 && !this.gameOver);
+        this.updatePlayerSlotUI(this.p2Slot, this.players[2], this.turn === 2 && !this.gameOver);
+
+        if (!this.players[1] || !this.players[2]) {
+            this.statusEl.innerText = 'Waiting for opponent...';
+        } else if (!this.gameOver) {
+            const isMyTurn = this.players[this.turn]?.id === this.currentUser.id;
+            this.statusEl.innerText = isMyTurn ? "Your Turn" : `${this.players[this.turn].name}'s Turn`;
+            this.statusEl.className = `text-sm font-mono px-4 py-2 rounded-full border border-[#333] ${isMyTurn ? 'bg-blue-600 text-white' : 'bg-[#222426]'}`;
+        }
+    }
+
+    handleMove(idx) {
+        if (this.gameOver || this.board[idx]) return;
+        
+        const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
+        if (mySeat === 0) return window.showCustomAlert("Spectator", "Sit to play!", "info");
+        if (this.turn !== mySeat) return;
+
+        this.emit('TTT_MOVE', { index: idx, player: mySeat });
+    }
+
+    onRemoteData(data) {
+        if (data.type.startsWith('TTT_')) this.processCommonEvents(data);
+
+        if (data.type === 'TTT_MOVE') {
+            this.performMove(data.payload.index, data.payload.player);
+        } else if (data.type === 'TTT_RESET') {
+            this.resetBoard();
+        } else if (data.type === 'TTT_STATE_REQ') {
+            if (this.players[1] && this.players[1].id === this.currentUser.id) {
+                this.emit('TTT_STATE_SYNC', { players: this.players, board: this.board, turn: this.turn, gameOver: this.gameOver });
+            }
+        } else if (data.type === 'TTT_STATE_SYNC') {
+            this.players = data.payload.players;
+            this.board = data.payload.board;
+            this.turn = data.payload.turn;
+            this.gameOver = data.payload.gameOver;
+            this.redrawBoard();
+            this.updatePlayerUI();
+        }
+    }
+
+    performMove(idx, player) {
+        if (this.board[idx]) return;
+        this.board[idx] = player;
+        this.turn = player === 1 ? 2 : 1;
+        this.redrawBoard();
+        
+        const winner = this.checkWin();
+        if (winner) {
+            this.gameOver = true;
+            this.statusEl.innerText = `${this.players[winner].name} Wins!`;
+            this.statusEl.className = 'text-sm font-bold bg-green-900/50 text-green-400 px-4 py-2 rounded-full border border-green-700';
+            if (this.players[1] && this.players[1].id === this.currentUser.id) setTimeout(() => this.emit('TTT_RESET', {}), 3000);
+        } else if (this.board.every(c => c !== null)) {
+            this.gameOver = true;
+            this.statusEl.innerText = "Draw!";
+            if (this.players[1] && this.players[1].id === this.currentUser.id) setTimeout(() => this.emit('TTT_RESET', {}), 3000);
+        }
+        this.updatePlayerUI();
+    }
+
+    redrawBoard() {
+        this.cells.forEach((cell, i) => {
+            const val = this.board[i];
+            cell.innerHTML = '';
+            if (val === 1) cell.innerHTML = '<i class="fa-solid fa-xmark text-cyan-400 animate-pop"></i>';
+            if (val === 2) cell.innerHTML = '<i class="fa-solid fa-o text-pink-500 animate-pop"></i>';
+        });
+    }
+
+    checkWin() {
+        const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+        for (let [a,b,c] of wins) {
+            if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) return this.board[a];
+        }
+        return null;
+    }
+
+    resetBoard() {
+        this.board = Array(9).fill(null);
+        this.gameOver = false;
+        this.turn = 1;
+        this.redrawBoard();
+        this.updatePlayerUI();
+    }
+    destroy() {}
+}
+
+/* =========================================
+   GAME 3: ROCK PAPER SCISSORS
+   ========================================= */
+class RockPaperScissors extends MultiplayerGame {
+    constructor(root, currentUser, emitFn) {
+        super(root, currentUser, emitFn);
+        this.id = 'rps';
+        this.prefix = 'RPS';
+        this.myMove = null;
+        this.p1Move = null; 
+        this.p2Move = null;
+        this.initUI();
+        this.emit('RPS_STATE_REQ', {});
+    }
+
+    initUI() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center gap-8 w-full h-full justify-center max-w-md';
+
+        const header = document.createElement('div');
+        header.className = 'flex justify-between w-full px-4 items-center';
+        this.p1Slot = this.createPlayerSlot('Blue', 'bg-blue-500', 1);
+        const vs = document.createElement('div');
+        vs.className = 'text-gray-600 font-bold text-xl italic';
+        vs.innerText = 'VS';
+        this.p2Slot = this.createPlayerSlot('Orange', 'bg-orange-500', 2);
+        header.appendChild(this.p1Slot.el);
+        header.appendChild(vs);
+        header.appendChild(this.p2Slot.el);
+        wrapper.appendChild(header);
+
+        // Action Area
+        this.actionArea = document.createElement('div');
+        this.actionArea.className = 'flex gap-4';
+        
+        ['rock', 'paper', 'scissors'].forEach(move => {
+            const btn = document.createElement('button');
+            btn.className = 'w-16 h-16 rounded-full bg-[#222426] border border-[#333] hover:border-gray-500 flex items-center justify-center text-2xl transition-all hover:scale-110';
+            btn.innerHTML = `<i class="fa-solid fa-hand-${move} text-gray-300"></i>`;
+            btn.onclick = () => this.handleMove(move);
+            this.actionArea.appendChild(btn);
+        });
+        wrapper.appendChild(this.actionArea);
+
+        // Result Display
+        this.resultEl = document.createElement('div');
+        this.resultEl.className = 'h-16 flex items-center justify-center';
+        this.resultEl.innerHTML = '<span class="text-gray-500 font-mono text-xs">Waiting for moves...</span>';
+        wrapper.appendChild(this.resultEl);
+
+        this.root.appendChild(wrapper);
+    }
+
+    updatePlayerUI() {
+        this.updatePlayerSlotUI(this.p1Slot, this.players[1], false);
+        this.updatePlayerSlotUI(this.p2Slot, this.players[2], false);
+        
+        // Show readiness
+        if(this.p1Move) this.p1Slot.el.querySelector('.fa-user').className = "fa-solid fa-check text-green-400";
+        else this.p1Slot.el.querySelector('.fa-user').className = "fa-solid fa-user";
+        
+        if(this.p2Move) this.p2Slot.el.querySelector('.fa-user').className = "fa-solid fa-check text-green-400";
+        else this.p2Slot.el.querySelector('.fa-user').className = "fa-solid fa-user";
+    }
+
+    handleMove(move) {
+        const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
+        if (mySeat === 0) return window.showCustomAlert("Spectator", "Sit to play!", "info");
+        if (this.myMove) return; // Already moved
+
+        this.myMove = move;
+        this.actionArea.style.opacity = '0.5';
+        this.actionArea.style.pointerEvents = 'none';
+        this.resultEl.innerHTML = '<span class="text-yellow-400 font-bold animate-pulse">Locked In!</span>';
+        
+        // Emit Commit (Hidden move)
+        this.emit('RPS_COMMIT', { player: mySeat });
+        
+        // Check if I should reveal locally initiated check
+        // We wait for both commits then emit reveal
+    }
+
+    onRemoteData(data) {
+        if (data.type.startsWith('RPS_')) this.processCommonEvents(data);
+
+        if (data.type === 'RPS_COMMIT') {
+            const p = data.payload.player;
+            if (p === 1) this.p1Move = 'hidden';
+            if (p === 2) this.p2Move = 'hidden';
+            this.updatePlayerUI();
+            this.checkReveal();
+        } else if (data.type === 'RPS_REVEAL') {
+            const { p1, p2 } = data.payload;
+            this.showResult(p1, p2);
+        } else if (data.type === 'RPS_RESET') {
+            this.resetGame();
+        } else if (data.type === 'RPS_STATE_REQ') {
+             // Basic sync if needed, mostly ephemeral
+        }
+    }
+
+    checkReveal() {
+        // If I am a player and I have moved, and I see opponent moved (hidden or not)
+        const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
+        
+        if (this.p1Move && this.p2Move && mySeat !== 0 && this.myMove) {
+            // I know my move, I know opponent committed.
+            // I will broadcast my move now as a Reveal.
+            // Wait, both need to reveal.
+            // Simplest: broadcast my real move now.
+            this.emit('RPS_REVEAL_MINE', { player: mySeat, move: this.myMove });
+        }
+    }
+    
+    // Improved flow for RPS to be secure-ish and stateless:
+    // 1. Commit -> 2. Both Committed -> 3. Both Send Reveal -> 4. Clients Show
+    // Overriding handleEvent for custom Reveal logic
+    processCommonEvents(data) {
+        super.processCommonEvents(data);
+        if (data.type === 'RPS_REVEAL_MINE') {
+            const { player, move } = data.payload;
+            if (player === 1) this.p1Move = move;
+            if (player === 2) this.p2Move = move;
+            
+            // If both revealed (not hidden), show result
+            if (this.p1Move !== 'hidden' && this.p2Move !== 'hidden' && this.p1Move && this.p2Move) {
+                this.showResult(this.p1Move, this.p2Move);
+            }
+        }
+    }
+
+    showResult(m1, m2) {
+        let res = '';
+        if (m1 === m2) res = 'Draw!';
+        else if ((m1==='rock'&&m2==='scissors') || (m1==='paper'&&m2==='rock') || (m1==='scissors'&&m2==='paper')) res = 'Player 1 Wins!';
+        else res = 'Player 2 Wins!';
+
+        this.resultEl.innerHTML = `
+            <div class="flex flex-col items-center gap-1 animate-pop">
+                <div class="flex gap-4 text-3xl mb-1">
+                    <i class="fa-solid fa-hand-${m1} text-blue-400"></i>
+                    <span class="text-gray-600 text-sm">vs</span>
+                    <i class="fa-solid fa-hand-${m2} text-orange-400"></i>
+                </div>
+                <div class="text-white font-bold text-lg">${res}</div>
+            </div>
+        `;
+        
+        // Auto reset
+        if (this.players[1] && this.players[1].id === this.currentUser.id) {
+            setTimeout(() => this.emit('RPS_RESET', {}), 3000);
+        }
+    }
+
+    resetGame() {
+        this.myMove = null;
+        this.p1Move = null;
+        this.p2Move = null;
+        this.actionArea.style.opacity = '1';
+        this.actionArea.style.pointerEvents = 'auto';
+        this.resultEl.innerHTML = '<span class="text-gray-500 font-mono text-xs">Waiting for moves...</span>';
+        this.updatePlayerUI();
+    }
+    destroy() {}
+}
+
+/* =========================================
+   GAME 4: CANDY MATCH (LOGIC FIXED)
    ========================================= */
 class MatchThree {
     constructor(root, currentUser) {
@@ -496,16 +784,11 @@ class MatchThree {
         this.colors = ['bg-red-500', 'bg-yellow-400', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500'];
         this.board = [];
         this.score = 0;
-        
-        // Turn System
         this.movesLeft = 20;
         this.isGameOver = false;
-        
-        // Interaction
         this.draggedTile = null;
         this.replacedTile = null;
         this.isProcessing = false;
-
         this.init();
     }
 
@@ -581,13 +864,11 @@ class MatchThree {
     }
 
     fillBoardNoMatches() {
-        // Random fill checking for no initial 3-matches
         for (let i = 0; i < this.board.length; i++) {
             let color = this.randomColor();
             const c = i % this.width;
             const r = Math.floor(i / this.width);
             
-            // Avoid immediate match
             let attempts = 0;
             while (
                 (c >= 2 && this.board[i-1].dataset.color === color && this.board[i-2].dataset.color === color) ||
@@ -595,7 +876,7 @@ class MatchThree {
             ) {
                 color = this.randomColor();
                 attempts++;
-                if(attempts > 10) break; // Fallback
+                if(attempts > 10) break;
             }
             
             this.board[i].className = `w-7 h-7 rounded-sm cursor-grab active:cursor-grabbing ${color} hover:brightness-110 transition-all duration-200`;
@@ -624,20 +905,15 @@ class MatchThree {
         const isRowWrap = Math.abs(currId % this.width - targetId % this.width) > 1;
 
         if (validMoves.includes(targetId) && !isRowWrap) {
-            // Swap visual
             this.swapColors(this.draggedTile, this.replacedTile);
-            
             const matches = this.findMatches();
             if (matches.length === 0) {
-                // Invalid move, swap back
                 await new Promise(r => setTimeout(r, 200));
                 this.swapColors(this.draggedTile, this.replacedTile);
             } else {
-                // Valid move
                 this.movesLeft--;
                 this.movesEl.innerText = `MOVES: ${this.movesLeft}`;
                 await this.processMatches();
-                
                 if (this.movesLeft <= 0) this.endGame();
             }
         }
@@ -648,17 +924,14 @@ class MatchThree {
     swapColors(t1, t2) {
         const c1 = t1.dataset.color;
         const c2 = t2.dataset.color;
-        
         t1.className = t1.className.replace(c1, c2);
         t2.className = t2.className.replace(c2, c1);
-        
         t1.dataset.color = c2;
         t2.dataset.color = c1;
     }
 
     findMatches() {
         const matches = new Set();
-        // Horizontal
         for (let i = 0; i < this.height * this.width; i++) {
             if (i % this.width < this.width - 2) {
                 const c1 = this.board[i].dataset.color;
@@ -669,7 +942,6 @@ class MatchThree {
                 }
             }
         }
-        // Vertical
         for (let i = 0; i < this.width * (this.height - 2); i++) {
             const c1 = this.board[i].dataset.color;
             const c2 = this.board[i+this.width].dataset.color;
@@ -684,52 +956,33 @@ class MatchThree {
     async processMatches() {
         this.isProcessing = true;
         let matches = this.findMatches();
-        
-        // Loop until board is stable (no matches)
         while (matches.length > 0) {
             this.score += matches.length * 10;
             this.scoreEl.innerText = `SCORE: ${this.score}`;
-
-            // Clear matches (visual pop)
             matches.forEach(id => {
                 this.board[id].dataset.color = 'transparent';
                 this.board[id].className = 'w-7 h-7 rounded-sm bg-transparent transition-all';
             });
-
             await new Promise(r => setTimeout(r, 300));
-
-            // Gravity Logic (Cascade)
             this.applyGravity();
             await new Promise(r => setTimeout(r, 300));
-            
-            // Check for new matches formed by falling blocks
             matches = this.findMatches();
         }
         this.isProcessing = false;
     }
 
     applyGravity() {
-        // Process each column
         for (let c = 0; c < this.width; c++) {
             let columnIndices = [];
-            for (let r = 0; r < this.height; r++) {
-                columnIndices.push(r * this.width + c);
-            }
-
-            // Extract Colors from this column
+            for (let r = 0; r < this.height; r++) columnIndices.push(r * this.width + c);
             let colors = columnIndices.map(i => this.board[i].dataset.color);
-            // Filter out empty spaces
             let validColors = colors.filter(c => c !== 'transparent');
-            // Fill empty slots at top with new random colors
             let missing = this.height - validColors.length;
             for(let k=0; k<missing; k++) validColors.unshift(this.randomColor());
-
-            // Re-apply sorted colors to board tiles
             for(let r=0; r<this.height; r++) {
                 const idx = columnIndices[r];
                 const color = validColors[r];
                 this.board[idx].dataset.color = color;
-                // Add animate-drop class for falling effect
                 this.board[idx].className = `w-7 h-7 rounded-sm cursor-grab active:cursor-grabbing ${color} hover:brightness-110 transition-all duration-200 animate-drop`;
             }
         }
@@ -752,12 +1005,11 @@ class MatchThree {
         this.gameOverEl.classList.remove('flex');
         this.createBoard();
     }
-
     destroy() {}
 }
 
 /* =========================================
-   GAME 3: MEMORY MATCH (SOLO)
+   GAME 5: MEMORY MATCH (SOLO)
    ========================================= */
 class MemoryGame {
     constructor(root) {
@@ -827,12 +1079,12 @@ class MemoryGame {
         wrapper.appendChild(grid);
         this.root.appendChild(wrapper);
     }
-    onRemoteData() {} // Solo game
+    onRemoteData() {}
     destroy() {}
 }
 
 /* =========================================
-   GAME 4: DINO RUNNER (SOLO)
+   GAME 6: DINO RUNNER (SOLO)
    ========================================= */
 class DinoRunner {
     constructor(root) {
