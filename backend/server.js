@@ -56,13 +56,10 @@ async function syncAuth0UserToRedis(req, res, next) {
 
     try {
       if (redis && redis.isOpen) {
-          // Check if user exists in Redis using their Auth0 email
           const userId = await redis.get(`email:${auth0User.email}`);
 
           if (!userId) {
-            // User doesn't exist in Redis, create them
-            const uniqueId = auth0User.sub.replace(/\|/g, '-'); // Use Auth0 sub as unique ID
-
+            const uniqueId = auth0User.sub.replace(/\|/g, '-'); 
             await redis.hSet(`user:${uniqueId}`, {
               id: String(uniqueId),
               name: String(auth0User.name || auth0User.email),
@@ -71,10 +68,7 @@ async function syncAuth0UserToRedis(req, res, next) {
               picture: String(auth0User.picture || ''),
               created_at: String(new Date().toISOString())
             });
-
-            // Create email -> userId mapping
             await redis.set(`email:${auth0User.email}`, uniqueId);
-
             console.log(`✅ Created new user in Redis: ${auth0User.email}`);
           }
       }
@@ -85,13 +79,11 @@ async function syncAuth0UserToRedis(req, res, next) {
   next();
 }
 
-// Apply sync middleware to all routes
 app.use(syncAuth0UserToRedis);
 
 // Home route - serves the main app
 app.get("/", (req, res) => {
   if (req.oidc.isAuthenticated()) {
-    // User is logged in, serve the main app
     res.sendFile(mainAppPath, (err) => {
       if (err) {
         console.error("Error sending mainapp.html", err);
@@ -99,24 +91,21 @@ app.get("/", (req, res) => {
       }
     });
   } else {
-    // User is not logged in, show signin page
     const signinPath = path.join(__dirname, "..", "src/Pages", "signin.html");
     res.sendFile(signinPath, (err) => {
-        if(err) res.redirect('/login'); // Fallback to Auth0 login if custom page fails
+        if(err) res.redirect('/login'); 
     });
   }
 });
 
-// Profile route - JSON response
 app.get("/profile", requiresAuth(), (req, res) => {
   res.json(req.oidc.user);
 });
 
-// User data route - JSON response from Redis + Auth0 for Board
 app.get("/api/user-data", requiresAuth(), async (req, res) => {
   try {
     const auth0User = req.oidc.user;
-    let userData = { ...auth0User }; // Default to Auth0 data
+    let userData = { ...auth0User }; 
     
     if (redis && redis.isOpen) {
         const userId = await redis.get(`email:${auth0User.email}`);
@@ -127,10 +116,8 @@ app.get("/api/user-data", requiresAuth(), async (req, res) => {
              }
         }
     }
-    // Ensure essential fields
     if(!userData.email) userData.email = auth0User.email;
     if(!userData.name) userData.name = auth0User.name;
-    // Normalize ID for consistency with socket messages
     userData.id = userData.id || auth0User.sub.replace(/\|/g, '-');
 
     res.json(userData);
@@ -140,12 +127,10 @@ app.get("/api/user-data", requiresAuth(), async (req, res) => {
   }
 });
 
-// Legacy route support
 app.get("/user-data", requiresAuth(), (req, res) => {
     res.redirect("/api/user-data");
 });
 
-// Invite route - Simulate email sending
 app.post("/api/invite", requiresAuth(), (req, res) => {
     const { email, boardId } = req.body;
     console.log(`[EMAIL SERVICE] 📧 Sending invitation email to: ${email}`);
@@ -153,7 +138,6 @@ app.post("/api/invite", requiresAuth(), (req, res) => {
     res.json({ success: true, message: `Invitation sent to ${email}` });
 });
 
-// SPA Routes - serve mainapp.html for frontend routing
 app.get(["/board", "/chat", "/room"], requiresAuth(), (req, res) => {
   res.sendFile(mainAppPath);
 });
@@ -162,7 +146,9 @@ function generateRoomCode(){
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Socket.IO connection handling
+// Memory Store for Pomodoro State (Per Room)
+const pomodoroStates = {}; // { boardId: { phase, remainingTime, isRunning, lastUpdate } }
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
@@ -170,7 +156,6 @@ io.on('connection', (socket) => {
     try {
       const { roomName, customCode } = data;
       const roomCode = customCode || generateRoomCode();
-
       const socketsInRoom = await io.in(roomCode).fetchSockets();
 
       if (customCode && socketsInRoom.length > 0) {
@@ -179,11 +164,7 @@ io.on('connection', (socket) => {
       }
 
       socket.join(roomCode);
-      console.log(`room created: ${roomCode} - ${roomName}`);
-      socket.emit('roomCreated', {
-        roomCode: roomCode,
-        roomName: roomName
-      });
+      socket.emit('roomCreated', { roomCode: roomCode, roomName: roomName });
     } catch (error) {
       console.error('error creating room:', error);
       socket.emit('roomError', 'Error creating room.');
@@ -193,15 +174,11 @@ io.on('connection', (socket) => {
   socket.on('join-room', async (roomCode) => {
     try {
       const socketsInRoom = await io.in(roomCode).fetchSockets();
-
       if (socketsInRoom.length === 0) {
         socket.emit('roomError', 'Room does not exist.');
         return;
       }
-
       socket.join(roomCode);
-      console.log(`User ${socket.id} joined room: ${roomCode}`);
-      
       socket.emit('roomJoined', { roomCode: roomCode });
       socket.to(roomCode).emit('userJoined', { userId: socket.id });
     } catch (error) {
@@ -210,16 +187,30 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Join a specific board room (also used for chat)
+  // Join a specific board room
   socket.on('join', async (boardId) => {
     socket.join(boardId);
-    console.log(`User ${socket.id} joined board room: ${boardId}`);
+    
+    // Sync Pomodoro State on Join
+    if (pomodoroStates[boardId]) {
+      const state = pomodoroStates[boardId];
+      // Calculate current remaining if running
+      let currentRemaining = state.remainingTime;
+      if (state.isRunning) {
+         const elapsed = Math.floor((Date.now() - state.lastUpdate) / 1000);
+         currentRemaining = Math.max(0, state.remainingTime - elapsed);
+      }
+      socket.emit('pomodoro:sync', { 
+         ...state, 
+         remainingTime: currentRemaining,
+         // Send fresh timestamp reference
+         lastUpdate: Date.now() 
+      });
+    }
 
-    // Fetch and send chat history
     if (redis && redis.isOpen) {
         try {
             const history = await redis.lRange(`chat:${boardId}`, 0, 49);
-            // Redis lists are stored as strings, parse them back to objects
             const parsedHistory = history.map(msg => JSON.parse(msg));
             socket.emit('chat:history', parsedHistory);
         } catch (err) {
@@ -228,7 +219,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle board updates and broadcast to others in the room
   socket.on('board:update', (data) => {
     const { boardId } = data;
     if (boardId) {
@@ -236,19 +226,69 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle Game Actions
+  // GAME ACTIONS - Broadcast to all in room
   socket.on('game:action', (data) => {
       const { boardId } = data;
       if (boardId) {
+          // Broadcast to everyone including sender for state consistency in some game types,
+          // but typically 'game:action' is handled by onRemoteData on peers.
           socket.to(boardId).emit('game:action', data);
       }
   });
+  
+  // PROFILE SYNC
+  socket.on('profile:update', (data) => {
+      const { boardId, profile, userId } = data;
+      if (boardId) {
+          socket.to(boardId).emit('profile:update', { userId, profile });
+      }
+  });
 
-  // --- Chat System Events ---
+  // POMODORO SYNC
+  socket.on('pomodoro:action', (data) => {
+      const { boardId, action, payload } = data;
+      if (!boardId) return;
+
+      if (!pomodoroStates[boardId]) {
+          pomodoroStates[boardId] = {
+              phase: 'pomodoro',
+              remainingTime: 25 * 60,
+              isRunning: false,
+              lastUpdate: Date.now()
+          };
+      }
+
+      const state = pomodoroStates[boardId];
+
+      if (action === 'start') {
+          state.isRunning = true;
+          state.lastUpdate = Date.now();
+      } else if (action === 'pause') {
+          if (state.isRunning) {
+              const elapsed = Math.floor((Date.now() - state.lastUpdate) / 1000);
+              state.remainingTime = Math.max(0, state.remainingTime - elapsed);
+          }
+          state.isRunning = false;
+          state.lastUpdate = Date.now();
+      } else if (action === 'reset') {
+          state.isRunning = false;
+          state.phase = payload && payload.phase ? payload.phase : 'pomodoro';
+          state.remainingTime = payload && payload.time ? payload.time : 25 * 60;
+          state.lastUpdate = Date.now();
+      } else if (action === 'sync') {
+          // Client authoritative update (e.g. phase change)
+          state.phase = payload.phase;
+          state.remainingTime = payload.remainingTime;
+          state.isRunning = payload.isRunning;
+          state.lastUpdate = Date.now();
+      }
+
+      // Broadcast new state to everyone in room
+      io.to(boardId).emit('pomodoro:sync', state);
+  });
 
   socket.on('chat:message', async (data) => {
       const { boardId, message, sender, senderId, senderName } = data;
-      
       if (boardId && message) {
           const chatMessage = {
               id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -258,18 +298,14 @@ io.on('connection', (socket) => {
               timestamp: new Date().toISOString()
           };
 
-          // Persist to Redis
           if (redis && redis.isOpen) {
               try {
                   await redis.rPush(`chat:${boardId}`, JSON.stringify(chatMessage));
-                  // Keep only last 50 messages
                   await redis.lTrim(`chat:${boardId}`, -50, -1);
               } catch (err) {
                   console.error("Error saving chat message:", err);
               }
           }
-
-          // Broadcast to EVERYONE in the room (including sender, for consistency)
           io.to(boardId).emit('chat:message', chatMessage);
       }
   });
@@ -277,7 +313,6 @@ io.on('connection', (socket) => {
   socket.on('chat:typing', (data) => {
       const { boardId, isTyping, userName } = data;
       if (boardId) {
-          // Broadcast to others only
           socket.to(boardId).emit('chat:typing', { 
               userId: socket.id, 
               userName: userName, 
@@ -287,7 +322,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    // Optional: emit user left to handle cleanup if needed, 
+    // though ghosts handle timeout automatically.
   });
 });
 
