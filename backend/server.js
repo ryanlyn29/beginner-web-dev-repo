@@ -66,6 +66,8 @@ async function syncAuth0UserToRedis(req, res, next) {
               email: String(auth0User.email),
               auth0_sub: String(auth0User.sub),
               picture: String(auth0User.picture || ''),
+              mouseColor: '#3b82f6', // Default Blue
+              themeColor: '#1a1b1d',
               created_at: String(new Date().toISOString())
             });
             await redis.set(`email:${auth0User.email}`, uniqueId);
@@ -118,6 +120,10 @@ app.get("/api/user-data", requiresAuth(), async (req, res) => {
     }
     if(!userData.email) userData.email = auth0User.email;
     if(!userData.name) userData.name = auth0User.name;
+    // Default colors if missing
+    if(!userData.mouseColor) userData.mouseColor = '#3b82f6';
+    if(!userData.themeColor) userData.themeColor = '#1a1b1d';
+    
     userData.id = userData.id || auth0User.sub.replace(/\|/g, '-');
 
     res.json(userData);
@@ -146,8 +152,30 @@ function generateRoomCode(){
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Memory Store for Pomodoro State (Per Room)
+// Memory Stores
 const pomodoroStates = {}; // { boardId: { phase, remainingTime, isRunning, lastUpdate } }
+const roomGameStates = {}; // { boardId: { activeGameId, players, boardData, turn } }
+const userPresence = {};   // { socketId: { boardId, userId, lastActive, ghostMode } }
+
+// Ghost Mouse Configuration
+const GHOST_TIMEOUT_MS = 10000; // 10 seconds inactivity triggers ghost
+const PRESENCE_CHECK_INTERVAL = 2000;
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [sid, data] of Object.entries(userPresence)) {
+        if (!data.ghostMode && (now - data.lastActive > GHOST_TIMEOUT_MS)) {
+            // User is inactive - Enable Ghost Mode
+            userPresence[sid].ghostMode = true;
+            if (data.boardId) {
+                io.to(data.boardId).emit('user:ghost', { 
+                    userId: data.userId, 
+                    isGhost: true 
+                });
+            }
+        }
+    }
+}, PRESENCE_CHECK_INTERVAL);
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -191,10 +219,17 @@ io.on('connection', (socket) => {
   socket.on('join', async (boardId) => {
     socket.join(boardId);
     
-    // Sync Pomodoro State on Join
+    // Initialize presence tracking
+    userPresence[socket.id] = {
+        boardId,
+        userId: socket.id, // Will be updated if authenticated user ID is passed later
+        lastActive: Date.now(),
+        ghostMode: false
+    };
+
+    // 1. Sync Pomodoro State
     if (pomodoroStates[boardId]) {
       const state = pomodoroStates[boardId];
-      // Calculate current remaining if running
       let currentRemaining = state.remainingTime;
       if (state.isRunning) {
          const elapsed = Math.floor((Date.now() - state.lastUpdate) / 1000);
@@ -203,11 +238,16 @@ io.on('connection', (socket) => {
       socket.emit('pomodoro:sync', { 
          ...state, 
          remainingTime: currentRemaining,
-         // Send fresh timestamp reference
          lastUpdate: Date.now() 
       });
     }
 
+    // 2. Sync Game State (Requirement 3: Reconnects)
+    if (roomGameStates[boardId]) {
+        socket.emit('game:restore', roomGameStates[boardId]);
+    }
+
+    // 3. Sync Chat History
     if (redis && redis.isOpen) {
         try {
             const history = await redis.lRange(`chat:${boardId}`, 0, 49);
@@ -219,6 +259,27 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Mouse Movement - Used for Ghost Presence Logic
+  socket.on('mouse:move', (data) => {
+      const { boardId } = data;
+      // Update activity timestamp
+      if (userPresence[socket.id]) {
+          const wasGhost = userPresence[socket.id].ghostMode;
+          userPresence[socket.id].lastActive = Date.now();
+          userPresence[socket.id].ghostMode = false;
+
+          // If they were a ghost, tell everyone they are back
+          if (wasGhost && boardId) {
+              io.to(boardId).emit('user:ghost', { 
+                  userId: userPresence[socket.id].userId, 
+                  isGhost: false 
+              });
+          }
+      }
+      // Broadcast move as usual
+      socket.to(boardId).emit('mouse:move', data);
+  });
+
   socket.on('board:update', (data) => {
     const { boardId } = data;
     if (boardId) {
@@ -226,25 +287,86 @@ io.on('connection', (socket) => {
     }
   });
 
-  // GAME ACTIONS - Broadcast to all in room
+  // GAME ACTIONS - Broadcast + Persist State
   socket.on('game:action', (data) => {
-      const { boardId } = data;
+      const { boardId, type, payload } = data;
+      if (!boardId) return;
+      
+      // Update Presence
+      if (userPresence[socket.id]) userPresence[socket.id].lastActive = Date.now();
+
+      // Initialize room game state if needed
+      if (!roomGameStates[boardId]) {
+          roomGameStates[boardId] = { activeGameId: null, boardData: {}, players: {} };
+      }
+      const gameState = roomGameStates[boardId];
+
+      // Handle persistence based on game type
+      if (type.includes('_SIT')) {
+          const { seat, user } = payload;
+          gameState.players[seat] = user;
+      }
+      if (type.includes('_LEAVE')) {
+         // Logic to remove player from state
+         // simplified: we reset players on specific leave events or rely on broad reset
+      }
+
+      // Game Specific Logic to update Server Truth
+      // Connect 4
+      if (type === 'C4_MOVE') {
+          gameState.activeGameId = 'connect4';
+          // In a real robust app, we'd update a server-side board array here.
+          // For now, we store the last move to ensure consistency on join, 
+          // but true persistence requires replicating game logic here.
+          // We will rely on the clients to broadcast state via STATE_SYNC for deep state,
+          // but we mark the active game here.
+      }
+      
+      // Broadcast to room
+      socket.to(boardId).emit('game:action', data);
+  });
+
+  // Handling client-to-server state sync (The authority model)
+  // When a client updates the board, they send a sync state that the server stores
+  socket.on('game:persist_state', (data) => {
+      const { boardId, fullState } = data;
       if (boardId) {
-          // Broadcast to everyone including sender for state consistency in some game types,
-          // but typically 'game:action' is handled by onRemoteData on peers.
-          socket.to(boardId).emit('game:action', data);
+          roomGameStates[boardId] = fullState;
       }
   });
   
-  // PROFILE SYNC
-  socket.on('profile:update', (data) => {
-      const { boardId, profile, userId } = data;
+  // PROFILE SYNC (Requirement 1)
+  socket.on('profile:update', async (data) => {
+      const { boardId, profile, userId } = data; // profile contains name, mouseColor, themeColor
+      
+      // 1. Update Redis (Persistence)
+      if (redis && redis.isOpen && profile.email) {
+          try {
+              const redisId = await redis.get(`email:${profile.email}`);
+              if (redisId) {
+                  await redis.hSet(`user:${redisId}`, {
+                      name: profile.name,
+                      mouseColor: profile.mouseColor,
+                      themeColor: profile.themeColor
+                  });
+              }
+          } catch (e) {
+              console.error("Redis profile save error", e);
+          }
+      }
+
+      // 2. Update Presence Map
+      if (userPresence[socket.id]) {
+          userPresence[socket.id].userId = userId;
+      }
+
+      // 3. Broadcast to Room (Real-time Sync)
       if (boardId) {
           socket.to(boardId).emit('profile:update', { userId, profile });
       }
   });
 
-  // POMODORO SYNC
+  // POMODORO SYNC (Requirement 4)
   socket.on('pomodoro:action', (data) => {
       const { boardId, action, payload } = data;
       if (!boardId) return;
@@ -283,7 +405,7 @@ io.on('connection', (socket) => {
           state.lastUpdate = Date.now();
       }
 
-      // Broadcast new state to everyone in room
+      // Broadcast new state to everyone in room (including sender to confirm)
       io.to(boardId).emit('pomodoro:sync', state);
   });
 
@@ -322,8 +444,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Optional: emit user left to handle cleanup if needed, 
-    // though ghosts handle timeout automatically.
+      // Cleanup presence
+      if (userPresence[socket.id]) {
+          const { boardId, userId } = userPresence[socket.id];
+          // Emit ghost mode immediately on disconnect (Requirement 2)
+          if (boardId) {
+              io.to(boardId).emit('user:ghost', { userId: userId, isGhost: true });
+          }
+          delete userPresence[socket.id];
+      }
+      console.log('User disconnected:', socket.id);
   });
 });
 
