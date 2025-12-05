@@ -15,8 +15,21 @@ if (!document.getElementById(styleId)) {
     gameStyles.innerHTML = `
     @keyframes softSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes popIn { 0% { transform: scale(0.5); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    @keyframes dropDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .animate-soft-slide { animation: softSlideUp 0.4s ease-out forwards; }
+    .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    .animate-drop { animation: dropDown 0.3s ease-out forwards; }
+    .animate-shake { animation: shake 0.5s ease-in-out infinite; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    
     .game-slot-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1) !important; }
     .game-slot-ghost { opacity: 0.5; filter: grayscale(1); }
+    .c4-cell { will-change: transform, background-color; }
+    .ttt-cell { transition: all 0.2s; }
+    .ttt-cell:hover { background-color: rgba(255,255,255,0.05); }
     `;
     document.head.appendChild(gameStyles);
 }
@@ -222,6 +235,14 @@ const Games = {
         if (!isRestore && this.activeGame && this.activeGame.emit) {
             this.activeGame.emit(this.activeGame.prefix + '_STATE_REQ', {});
         }
+    },
+    
+    stopActiveGame() {
+        if (this.activeGame && typeof this.activeGame.destroy === 'function') {
+            this.activeGame.destroy();
+        }
+        this.activeGame = null;
+        this.container.innerHTML = '';
     }
 };
 
@@ -309,6 +330,8 @@ class MultiplayerGame {
             this.updatePlayerUI();
             // Sync state back to server so late joiners see this player
             if (this.players[1] && this.players[1].id === this.currentUser.id) this.syncToServer();
+        } else if (data.type === this.prefix + '_LEAVE') {
+             // Optional logic
         }
     }
     
@@ -321,6 +344,10 @@ class MultiplayerGame {
                 gameOver: this.gameOver
             });
         }
+    }
+    
+    onLeave() {
+        this.emit(this.prefix + '_LEAVE', {});
     }
     
     // Abstract
@@ -461,7 +488,6 @@ class ConnectFour extends MultiplayerGame {
     }
 
     checkWin(r, c, p) {
-        // ... (standard win logic) ...
         const dirs = [[0,1], [1,0], [1,1], [1,-1]];
         return dirs.some(([dr, dc]) => {
             let count = 1;
@@ -609,27 +635,547 @@ class TicTacToe extends MultiplayerGame {
 }
 
 /* =========================================
-   GAME 3: ROCK PAPER SCISSORS (Stubbed for brevity)
+   GAME 3: ROCK PAPER SCISSORS
    ========================================= */
 class RockPaperScissors extends MultiplayerGame {
-    constructor(r, u, e, p) { super(r, u, e, p); this.id='rps'; this.prefix='RPS'; this.initUI(); }
-    emitResize() { Games.dispatchResize('420px', '550px'); }
-    initUI() {
-        const w = document.createElement('div');
-        w.className = 'flex flex-col items-center justify-center h-full gap-4 text-gray-400';
-        w.innerText = "Rock Paper Scissors (Active)";
-        this.root.appendChild(w);
+    constructor(root, currentUser, emitFn, persistFn) {
+        super(root, currentUser, emitFn, persistFn);
+        this.id = 'rps';
+        this.prefix = 'RPS';
+        this.myMove = null;
+        this.p1Move = null; 
+        this.p2Move = null;
+        this.initUI();
+        this.emit('RPS_STATE_REQ', {});
     }
-    onRemoteData(d) { if(d.type.startsWith('RPS_')) this.processCommonEvents(d); }
-    applyState(s) { this.players = s.players; }
+    
+    emitResize() { Games.dispatchResize('420px', '550px'); }
+
+    initUI() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center gap-8 w-full h-full justify-center max-w-md';
+
+        const header = document.createElement('div');
+        header.className = 'flex justify-between w-full px-4 items-center';
+        this.p1Slot = this.createPlayerSlot('bg-blue-500', 1);
+        const vs = document.createElement('div');
+        vs.className = 'text-gray-600 font-bold text-xl italic';
+        vs.innerText = 'VS';
+        this.p2Slot = this.createPlayerSlot('bg-orange-500', 2);
+        header.appendChild(this.p1Slot.el);
+        header.appendChild(vs);
+        header.appendChild(this.p2Slot.el);
+        wrapper.appendChild(header);
+
+        // Action Area
+        this.actionArea = document.createElement('div');
+        this.actionArea.className = 'flex gap-4';
+        
+        ['rock', 'paper', 'scissors'].forEach(move => {
+            const btn = document.createElement('button');
+            btn.className = 'w-16 h-16 rounded-full bg-[#222426] border border-[#333] hover:border-gray-500 flex items-center justify-center text-2xl transition-all hover:scale-110';
+            btn.innerHTML = `<i class="fa-solid fa-hand-${move} text-gray-300"></i>`;
+            btn.onclick = () => this.handleMove(move);
+            this.actionArea.appendChild(btn);
+        });
+        wrapper.appendChild(this.actionArea);
+
+        // Result Display
+        this.resultEl = document.createElement('div');
+        this.resultEl.className = 'h-16 flex items-center justify-center';
+        this.resultEl.innerHTML = '<span class="text-gray-500 font-mono text-xs">Waiting for moves...</span>';
+        wrapper.appendChild(this.resultEl);
+
+        this.root.appendChild(wrapper);
+    }
+
+    updatePlayerUI() {
+        this.updatePlayerSlotUI(this.p1Slot, this.players[1], false);
+        this.updatePlayerSlotUI(this.p2Slot, this.players[2], false);
+        
+        // Show readiness
+        if(this.p1Move) this.p1Slot.el.querySelector('.fa-user').className = "fa-solid fa-check text-green-400";
+        else this.p1Slot.el.querySelector('.fa-user').className = "fa-solid fa-user";
+        
+        if(this.p2Move) this.p2Slot.el.querySelector('.fa-user').className = "fa-solid fa-check text-green-400";
+        else this.p2Slot.el.querySelector('.fa-user').className = "fa-solid fa-user";
+    }
+
+    handleMove(move) {
+        const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
+        if (mySeat === 0) return window.showCustomAlert("Spectator", "Sit to play!", "info");
+        if (this.myMove) return; // Already moved
+
+        this.myMove = move;
+        this.actionArea.style.opacity = '0.5';
+        this.actionArea.style.pointerEvents = 'none';
+        this.resultEl.innerHTML = '<span class="text-yellow-400 font-bold animate-pulse">Locked In!</span>';
+        
+        // Emit Commit (Hidden move)
+        this.emit('RPS_COMMIT', { player: mySeat });
+    }
+
+    onRemoteData(data) {
+        if (data.type.startsWith('RPS_')) this.processCommonEvents(data);
+
+        if (data.type === 'RPS_COMMIT') {
+            const p = data.payload.player;
+            if (p === 1) this.p1Move = 'hidden';
+            if (p === 2) this.p2Move = 'hidden';
+            this.updatePlayerUI();
+            this.checkReveal();
+        } else if (data.type === 'RPS_REVEAL_MINE') {
+            const { player, move } = data.payload;
+            if (player === 1) this.p1Move = move;
+            if (player === 2) this.p2Move = move;
+            if (this.p1Move !== 'hidden' && this.p2Move !== 'hidden' && this.p1Move && this.p2Move) {
+                this.showResult(this.p1Move, this.p2Move);
+            }
+        } else if (data.type === 'RPS_RESET') {
+            this.resetGame();
+        }
+    }
+    
+    applyState(state) {
+        this.players = state.players;
+        // RPS state is transient mostly
+    }
+
+    checkReveal() {
+        const mySeat = this.players[1]?.id === this.currentUser.id ? 1 : (this.players[2]?.id === this.currentUser.id ? 2 : 0);
+        
+        if (this.p1Move && this.p2Move && mySeat !== 0 && this.myMove) {
+            this.emit('RPS_REVEAL_MINE', { player: mySeat, move: this.myMove });
+        }
+    }
+
+    showResult(m1, m2) {
+        let res = '';
+        if (m1 === m2) res = 'Draw!';
+        else if ((m1==='rock'&&m2==='scissors') || (m1==='paper'&&m2==='rock') || (m1==='scissors'&&m2==='paper')) res = 'Player 1 Wins!';
+        else res = 'Player 2 Wins!';
+
+        this.resultEl.innerHTML = `
+            <div class="flex flex-col items-center gap-1 animate-pop">
+                <div class="flex gap-4 text-3xl mb-1">
+                    <i class="fa-solid fa-hand-${m1} text-blue-400"></i>
+                    <span class="text-gray-600 text-sm">vs</span>
+                    <i class="fa-solid fa-hand-${m2} text-orange-400"></i>
+                </div>
+                <div class="text-white font-bold text-lg">${res}</div>
+            </div>
+        `;
+        
+        // Auto reset logic
+        if (this.players[1] && this.players[1].id === this.currentUser.id) {
+            setTimeout(() => this.emit('RPS_RESET', {}), 3000);
+        }
+    }
+
+    resetGame() {
+        this.myMove = null;
+        this.p1Move = null;
+        this.p2Move = null;
+        this.actionArea.style.opacity = '1';
+        this.actionArea.style.pointerEvents = 'auto';
+        this.resultEl.innerHTML = '<span class="text-gray-500 font-mono text-xs">Waiting for moves...</span>';
+        this.updatePlayerUI();
+    }
 }
 
 /* =========================================
-   SINGLE PLAYER GAMES
+   GAME 4: CANDY MATCH (SOLO)
    ========================================= */
-class MatchThree { constructor(r) { this.root=r; this.root.innerHTML='<div class="text-white">Candy Match (Solo)</div>'; } destroy(){} emitResize(){Games.dispatchResize('400px','500px');} }
-class MemoryGame { constructor(r) { this.root=r; this.root.innerHTML='<div class="text-white">Memory (Solo)</div>'; } destroy(){} emitResize(){Games.dispatchResize('400px','500px');} }
-class DinoRunner { constructor(r) { this.root=r; this.root.innerHTML='<div class="text-white">Dino Run (Solo)</div>'; } destroy(){} emitResize(){Games.dispatchResize('400px','320px');} }
+class MatchThree {
+    constructor(root, currentUser) {
+        this.root = root;
+        this.width = 8;
+        this.height = 8;
+        this.colors = ['bg-red-500', 'bg-yellow-400', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500'];
+        this.board = [];
+        this.score = 0;
+        this.movesLeft = 20;
+        this.isGameOver = false;
+        this.draggedTile = null;
+        this.replacedTile = null;
+        this.isProcessing = false;
+        this.init();
+    }
+    
+    emitResize() { Games.dispatchResize('400px', '580px'); }
 
+    init() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center justify-center h-full w-full gap-3';
+
+        // Header (Score & Moves)
+        const header = document.createElement('div');
+        header.className = 'flex justify-between w-full max-w-[280px] text-xs font-mono text-gray-300 mb-2';
+        
+        this.scoreEl = document.createElement('div');
+        this.scoreEl.className = 'bg-[#222426] px-3 py-1.5 rounded border border-[#333]';
+        this.scoreEl.innerText = 'SCORE: 0';
+        
+        this.movesEl = document.createElement('div');
+        this.movesEl.className = 'bg-[#222426] px-3 py-1.5 rounded border border-[#333] text-orange-400';
+        this.movesEl.innerText = `MOVES: ${this.movesLeft}`;
+        
+        header.appendChild(this.scoreEl);
+        header.appendChild(this.movesEl);
+        wrapper.appendChild(header);
+
+        // Grid
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-8 gap-1 bg-[#151313] p-2 rounded-xl border border-[#222426] select-none';
+        this.gridEl = grid;
+        wrapper.appendChild(grid);
+        
+        // Game Over Overlay (Hidden initially)
+        this.gameOverEl = document.createElement('div');
+        this.gameOverEl.className = 'absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center hidden';
+        this.gameOverEl.innerHTML = `
+            <div class="text-2xl font-bold text-white mb-2">Time's Up!</div>
+            <div class="text-sm text-gray-400 mb-4">Final Score: <span id="final-score" class="text-white">0</span></div>
+            <button id="restart-match3" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-xs transition">Play Again</button>
+        `;
+        wrapper.appendChild(this.gameOverEl);
+        
+        // Bind Restart
+        setTimeout(() => {
+            const btn = document.getElementById('restart-match3');
+            if(btn) btn.onclick = () => this.resetGame();
+        }, 0);
+
+        this.root.appendChild(wrapper);
+        this.createBoard();
+    }
+
+    createBoard() {
+        this.gridEl.innerHTML = '';
+        this.board = [];
+        
+        // Generate valid initial board (No matches)
+        for (let i = 0; i < this.width * this.height; i++) {
+            const tile = document.createElement('div');
+            tile.setAttribute('draggable', true);
+            tile.setAttribute('id', i);
+            
+            // Events
+            tile.addEventListener('dragstart', this.dragStart.bind(this));
+            tile.addEventListener('dragover', (e) => e.preventDefault());
+            tile.addEventListener('dragenter', (e) => e.preventDefault());
+            tile.addEventListener('drop', this.dragDrop.bind(this));
+            tile.addEventListener('dragend', this.dragEnd.bind(this));
+
+            this.gridEl.appendChild(tile);
+            this.board.push(tile);
+        }
+
+        // Fill recursively until stable without matches
+        this.fillBoardNoMatches();
+    }
+
+    fillBoardNoMatches() {
+        for (let i = 0; i < this.board.length; i++) {
+            let color = this.randomColor();
+            const c = i % this.width;
+            const r = Math.floor(i / this.width);
+            
+            let attempts = 0;
+            while (
+                (c >= 2 && this.board[i-1].dataset.color === color && this.board[i-2].dataset.color === color) ||
+                (r >= 2 && this.board[i-this.width].dataset.color === color && this.board[i-this.width*2].dataset.color === color)
+            ) {
+                color = this.randomColor();
+                attempts++;
+                if(attempts > 10) break;
+            }
+            
+            this.board[i].className = `w-7 h-7 rounded-sm cursor-grab active:cursor-grabbing ${color} hover:brightness-110 transition-all duration-200`;
+            this.board[i].dataset.color = color;
+        }
+    }
+
+    randomColor() { return this.colors[Math.floor(Math.random() * this.colors.length)]; }
+
+    dragStart(e) { 
+        if (this.isProcessing || this.isGameOver) { e.preventDefault(); return; }
+        this.draggedTile = e.target; 
+        this.draggedTile.style.opacity = '0.5';
+    }
+    
+    dragDrop(e) { this.replacedTile = e.target; }
+
+    async dragEnd() {
+        if (this.draggedTile) this.draggedTile.style.opacity = '1';
+        if (!this.replacedTile || !this.draggedTile || this.isProcessing || this.isGameOver) return;
+
+        let currId = parseInt(this.draggedTile.id);
+        let targetId = parseInt(this.replacedTile.id);
+        
+        const validMoves = [currId - 1, currId - this.width, currId + 1, currId + this.width];
+        const isRowWrap = Math.abs(currId % this.width - targetId % this.width) > 1;
+
+        if (validMoves.includes(targetId) && !isRowWrap) {
+            this.swapColors(this.draggedTile, this.replacedTile);
+            const matches = this.findMatches();
+            if (matches.length === 0) {
+                await new Promise(r => setTimeout(r, 200));
+                this.swapColors(this.draggedTile, this.replacedTile);
+            } else {
+                this.movesLeft--;
+                this.movesEl.innerText = `MOVES: ${this.movesLeft}`;
+                await this.processMatches();
+                if (this.movesLeft <= 0) this.endGame();
+            }
+        }
+        this.draggedTile = null;
+        this.replacedTile = null;
+    }
+
+    swapColors(t1, t2) {
+        const c1 = t1.dataset.color;
+        const c2 = t2.dataset.color;
+        t1.className = t1.className.replace(c1, c2);
+        t2.className = t2.className.replace(c2, c1);
+        t1.dataset.color = c2;
+        t2.dataset.color = c1;
+    }
+
+    findMatches() {
+        const matches = new Set();
+        for (let i = 0; i < this.height * this.width; i++) {
+            if (i % this.width < this.width - 2) {
+                const c1 = this.board[i].dataset.color;
+                const c2 = this.board[i+1].dataset.color;
+                const c3 = this.board[i+2].dataset.color;
+                if (c1 === c2 && c2 === c3 && c1 !== 'transparent') {
+                    matches.add(i); matches.add(i+1); matches.add(i+2);
+                }
+            }
+        }
+        for (let i = 0; i < this.width * (this.height - 2); i++) {
+            const c1 = this.board[i].dataset.color;
+            const c2 = this.board[i+this.width].dataset.color;
+            const c3 = this.board[i+this.width*2].dataset.color;
+            if (c1 === c2 && c2 === c3 && c1 !== 'transparent') {
+                matches.add(i); matches.add(i+this.width); matches.add(i+this.width*2);
+            }
+        }
+        return Array.from(matches);
+    }
+
+    async processMatches() {
+        this.isProcessing = true;
+        let matches = this.findMatches();
+        while (matches.length > 0) {
+            this.score += matches.length * 10;
+            this.scoreEl.innerText = `SCORE: ${this.score}`;
+            matches.forEach(id => {
+                this.board[id].dataset.color = 'transparent';
+                this.board[id].className = 'w-7 h-7 rounded-sm bg-transparent transition-all';
+            });
+            await new Promise(r => setTimeout(r, 300));
+            this.applyGravity();
+            await new Promise(r => setTimeout(r, 300));
+            matches = this.findMatches();
+        }
+        this.isProcessing = false;
+    }
+
+    applyGravity() {
+        for (let c = 0; c < this.width; c++) {
+            let columnIndices = [];
+            for (let r = 0; r < this.height; r++) columnIndices.push(r * this.width + c);
+            let colors = columnIndices.map(i => this.board[i].dataset.color);
+            let validColors = colors.filter(c => c !== 'transparent');
+            let missing = this.height - validColors.length;
+            for(let k=0; k<missing; k++) validColors.unshift(this.randomColor());
+            for(let r=0; r<this.height; r++) {
+                const idx = columnIndices[r];
+                const color = validColors[r];
+                this.board[idx].dataset.color = color;
+                this.board[idx].className = `w-7 h-7 rounded-sm cursor-grab active:cursor-grabbing ${color} hover:brightness-110 transition-all duration-200 animate-drop`;
+            }
+        }
+    }
+
+    endGame() {
+        this.isGameOver = true;
+        document.getElementById('final-score').innerText = this.score;
+        this.gameOverEl.classList.remove('hidden');
+        this.gameOverEl.classList.add('flex');
+    }
+
+    resetGame() {
+        this.score = 0;
+        this.movesLeft = 20;
+        this.isGameOver = false;
+        this.scoreEl.innerText = 'SCORE: 0';
+        this.movesEl.innerText = 'MOVES: 20';
+        this.gameOverEl.classList.add('hidden');
+        this.gameOverEl.classList.remove('flex');
+        this.createBoard();
+    }
+    destroy() {}
+}
+
+/* =========================================
+   GAME 5: MEMORY MATCH (SOLO)
+   ========================================= */
+class MemoryGame {
+    constructor(root) {
+        this.root = root;
+        this.init();
+    }
+    emitResize() { Games.dispatchResize('400px', '500px'); }
+    init() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center justify-center h-full gap-4';
+        const info = document.createElement('div');
+        info.innerText = 'Find Pairs';
+        info.className = 'text-gray-400 text-xs font-bold uppercase tracking-widest';
+        wrapper.appendChild(info);
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-4 gap-2 p-2';
+        const icons = ['fa-cat', 'fa-dog', 'fa-fish', 'fa-crow', 'fa-dragon', 'fa-hippo', 'fa-spider', 'fa-horse'];
+        const items = [...icons, ...icons].sort(() => 0.5 - Math.random());
+        
+        let firstCard = null, secondCard = null, lock = false, matches = 0;
+
+        items.forEach(iconClass => {
+            const card = document.createElement('div');
+            card.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-[#222426] border border-[#333] rounded-lg cursor-pointer flex items-center justify-center text-white text-xl transition-all duration-200 hover:border-gray-500';
+            
+            const front = document.createElement('i');
+            front.className = `fa-solid ${iconClass} hidden animate-soft-slide`;
+            const back = document.createElement('i');
+            back.className = 'fa-solid fa-question text-[#333] text-sm';
+            
+            card.appendChild(front);
+            card.appendChild(back);
+            grid.appendChild(card);
+
+            card.onclick = () => {
+                if (lock || card === firstCard || card.classList.contains('matched')) return;
+                
+                card.classList.add('bg-emerald-600', 'border-emerald-500');
+                back.classList.add('hidden');
+                front.classList.remove('hidden');
+
+                if (!firstCard) {
+                    firstCard = card;
+                    return;
+                }
+
+                secondCard = card;
+                lock = true;
+
+                if (firstCard.firstChild.className === secondCard.firstChild.className) {
+                    firstCard.classList.add('matched', 'opacity-50');
+                    secondCard.classList.add('matched', 'opacity-50');
+                    matches++;
+                    [firstCard, secondCard, lock] = [null, null, false];
+                    if (matches === 8) info.innerText = "You Win!";
+                } else {
+                    setTimeout(() => {
+                        [firstCard, secondCard].forEach(c => {
+                            c.classList.remove('bg-emerald-600', 'border-emerald-500');
+                            c.firstChild.classList.add('hidden');
+                            c.lastChild.classList.remove('hidden');
+                        });
+                        [firstCard, secondCard, lock] = [null, null, false];
+                    }, 800);
+                }
+            };
+        });
+        wrapper.appendChild(grid);
+        this.root.appendChild(wrapper);
+    }
+    onRemoteData() {}
+    destroy() {}
+}
+
+/* =========================================
+   GAME 6: DINO RUNNER (SOLO)
+   ========================================= */
+class DinoRunner {
+    constructor(root) {
+        this.root = root;
+        this.init();
+    }
+    emitResize() { Games.dispatchResize('400px', '320px'); }
+    init() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-col items-center justify-center h-full gap-3';
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = 320;
+        this.canvas.height = 160;
+        this.canvas.className = 'bg-[#151313] border border-[#222426] rounded-lg cursor-pointer';
+        wrapper.appendChild(this.canvas);
+        const score = document.createElement('div');
+        score.className = 'text-gray-500 text-[10px] font-mono uppercase';
+        score.innerText = 'Click to Jump';
+        wrapper.appendChild(score);
+        this.root.appendChild(wrapper);
+        this.ctx = this.canvas.getContext('2d');
+        this.running = true;
+        this.dino = { x: 30, y: 130, w: 16, h: 16, dy: 0, jump: 7, grounded: true };
+        this.obs = [];
+        this.frame = 0;
+        this.score = 0;
+        this.speed = 3.5;
+        this.scoreEl = score;
+        
+        this.jump = () => { if(this.dino.grounded && this.running) { this.dino.dy = -this.dino.jump; this.dino.grounded = false; } };
+        this.canvas.onclick = this.jump;
+        this.loop = this.loop.bind(this);
+        requestAnimationFrame(this.loop);
+    }
+    
+    loop() {
+        if(!this.root.contains(this.canvas)) return;
+        if(!this.running) {
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillText("Game Over. Click to restart", 80, 80);
+            this.canvas.onclick = () => { this.root.innerHTML=''; new DinoRunner(this.root); };
+            return;
+        }
+        
+        this.ctx.clearRect(0,0,320,160);
+        this.dino.dy += 0.4;
+        this.dino.y += this.dino.dy;
+        if(this.dino.y > 130) { this.dino.y = 130; this.dino.dy=0; this.dino.grounded=true; }
+        
+        this.frame++;
+        if(this.frame % 90 === 0) this.obs.push({x:320, y:130, w:10, h:16});
+        
+        this.ctx.fillStyle = '#10b981';
+        this.ctx.fillRect(this.dino.x, this.dino.y, 16, 16);
+        
+        this.ctx.fillStyle = '#ef4444';
+        this.obs.forEach((o, i) => {
+            o.x -= this.speed;
+            this.ctx.fillRect(o.x, o.y, o.w, o.h);
+            if(o.x+o.w < 0) { this.obs.splice(i,1); this.score++; this.scoreEl.innerText = "SCORE: "+this.score; }
+            if(this.dino.x < o.x + o.w && this.dino.x + 16 > o.x && this.dino.y < o.y + o.h && this.dino.y + 16 > o.y) this.running = false;
+        });
+        
+        this.ctx.strokeStyle = '#333';
+        this.ctx.beginPath(); this.ctx.moveTo(0,146); this.ctx.lineTo(320,146); this.ctx.stroke();
+        
+        requestAnimationFrame(this.loop);
+    }
+    onRemoteData() {}
+    destroy() { this.running = false; }
+}
+
+// Explicitly attach to window
 window.Games = Games;
-window.initGames = function() { if (window.Games) window.Games.enable(); };
+
+// Initialization Helper
+window.initGames = function() {
+    if (window.Games) {
+        window.Games.enable();
+    }
+};
