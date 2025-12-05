@@ -11,7 +11,6 @@ window.initPomodoro = function() {
     console.log("Initializing Socket-Synced Pomodoro Timer...");
     
     // Attempt to locate the global socket object (usually on window.socket or via Games)
-    // If not found, we cannot sync.
     const socket = window.socket || (window.Games ? window.Games.socket : null);
     const boardId = window.currentBoardId || (new URLSearchParams(window.location.search).get('room'));
 
@@ -106,7 +105,6 @@ window.initPomodoro = function() {
     };
 
     const renderPomodoro = () => {
-        // ... (Same rendering logic as before for dimensions) ...
         const collapsedWidth = '120px'; 
         const collapsedHeight = '35.5px'; 
         const expandedWidth = '320px';
