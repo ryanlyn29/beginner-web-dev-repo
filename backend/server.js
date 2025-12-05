@@ -227,22 +227,32 @@ io.on('connection', (socket) => {
         ghostMode: false
     };
 
-    // 1. Sync Pomodoro State
-    if (pomodoroStates[boardId]) {
-      const state = pomodoroStates[boardId];
-      let currentRemaining = state.remainingTime;
-      if (state.isRunning) {
+    // 1. Sync & Auto-Start Pomodoro (Requirement 3)
+    if (!pomodoroStates[boardId]) {
+      // Auto-start on first join
+      pomodoroStates[boardId] = {
+          phase: 'pomodoro',
+          remainingTime: 25 * 60,
+          isRunning: true, // Auto-start
+          lastUpdate: Date.now()
+      };
+      console.log(`⏱️ Auto-started Pomodoro for Room ${boardId}`);
+    }
+
+    // Send current state
+    const state = pomodoroStates[boardId];
+    let currentRemaining = state.remainingTime;
+    if (state.isRunning) {
          const elapsed = Math.floor((Date.now() - state.lastUpdate) / 1000);
          currentRemaining = Math.max(0, state.remainingTime - elapsed);
-      }
-      socket.emit('pomodoro:sync', { 
+    }
+    socket.emit('pomodoro:sync', { 
          ...state, 
          remainingTime: currentRemaining,
          lastUpdate: Date.now() 
-      });
-    }
+    });
 
-    // 2. Sync Game State (Requirement 3: Reconnects)
+    // 2. Sync Game State (Requirement 2: Reconnects)
     if (roomGameStates[boardId]) {
         socket.emit('game:restore', roomGameStates[boardId]);
     }
@@ -287,9 +297,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // GAME ACTIONS - Broadcast + Persist State
+  // GAME ACTIONS - Broadcast + Persist State (Requirement 1 & 2)
   socket.on('game:action', (data) => {
-      const { boardId, type, payload } = data;
+      const { boardId, type, payload, userId, userName, userColor } = data;
       if (!boardId) return;
       
       // Update Presence
@@ -301,35 +311,66 @@ io.on('connection', (socket) => {
       }
       const gameState = roomGameStates[boardId];
 
-      // Handle persistence based on game type
+      // --- SERVER AUTHORITATIVE SEAT LOGIC ---
       if (type.includes('_SIT')) {
-          const { seat, user } = payload;
-          gameState.players[seat] = user;
-      }
-      if (type.includes('_LEAVE')) {
-         // Logic to remove player from state
-         // simplified: we reset players on specific leave events or rely on broad reset
+          const { seat } = payload;
+          
+          // Race Condition Check: Is seat already taken?
+          if (gameState.players && gameState.players[seat]) {
+              // Seat occupied, do not process
+              return;
+          }
+
+          // Assign Seat in Memory
+          gameState.players[seat] = {
+              id: userId,
+              name: userName,
+              mouseColor: userColor
+          };
+          
+          // Re-attach the authoritative user object to payload to ensure all clients see the same data
+          data.payload.user = gameState.players[seat];
       }
 
-      // Game Specific Logic to update Server Truth
+      if (type.includes('_LEAVE')) {
+          // Find and remove player from state
+          for (const seat in gameState.players) {
+              if (gameState.players[seat].id === userId) {
+                  delete gameState.players[seat];
+              }
+          }
+      }
+
+      // Track Active Game ID
       if (type === 'C4_MOVE') gameState.activeGameId = 'connect4';
       if (type === 'TTT_MOVE') gameState.activeGameId = 'tictactoe';
       if (type === 'RPS_COMMIT') gameState.activeGameId = 'rps';
       
-      // Broadcast to room
-      socket.to(boardId).emit('game:action', data);
+      // Broadcast to room (including sender to confirm seat)
+      io.to(boardId).emit('game:action', data);
   });
 
   // Handling client-to-server state sync (The authority model)
   // When a client updates the board, they send a sync state that the server stores
+  // This is used for Move persistence (Board state, turn)
   socket.on('game:persist_state', (data) => {
       const { boardId, fullState } = data;
-      if (boardId) {
-          roomGameStates[boardId] = fullState;
+      if (boardId && roomGameStates[boardId]) {
+          // Merge to avoid overwriting seat logic if race occurs
+          roomGameStates[boardId] = {
+              ...roomGameStates[boardId],
+              ...fullState,
+              players: roomGameStates[boardId].players // Keep players from server memory as primary source of truth if possible
+          };
+          // If fullState has players, it might be a reset, so we can trust it if needed, 
+          // but usually seat logic is separate from board logic.
+          if (fullState.players) {
+               roomGameStates[boardId].players = fullState.players;
+          }
       }
   });
   
-  // PROFILE SYNC (Requirement 1)
+  // PROFILE SYNC (Requirement 4)
   socket.on('profile:update', async (data) => {
       const { boardId, profile, userId } = data; // profile contains name, mouseColor, themeColor
       
@@ -354,13 +395,24 @@ io.on('connection', (socket) => {
           userPresence[socket.id].userId = userId;
       }
 
-      // 3. Broadcast to Room (Real-time Sync)
+      // 3. Update Game State Players if sitting
+      if (boardId && roomGameStates[boardId] && roomGameStates[boardId].players) {
+          const players = roomGameStates[boardId].players;
+          for (const seat in players) {
+              if (players[seat].id === userId) {
+                  players[seat].name = profile.name;
+                  players[seat].mouseColor = profile.mouseColor;
+              }
+          }
+      }
+
+      // 4. Broadcast to Room (Real-time Sync)
       if (boardId) {
           socket.to(boardId).emit('profile:update', { userId, profile });
       }
   });
 
-  // POMODORO SYNC (Requirement 4)
+  // POMODORO SYNC (Requirement 3)
   socket.on('pomodoro:action', (data) => {
       const { boardId, action, payload } = data;
       if (!boardId) return;
@@ -441,7 +493,8 @@ io.on('connection', (socket) => {
       // Cleanup presence
       if (userPresence[socket.id]) {
           const { boardId, userId } = userPresence[socket.id];
-          // Emit ghost mode immediately on disconnect (Requirement 2)
+          
+          // Mark game seat as potentially ghosted (handled by ghost timeout usually, but can trigger immediate ghost logic)
           if (boardId) {
               io.to(boardId).emit('user:ghost', { userId: userId, isGhost: true });
           }
