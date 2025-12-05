@@ -11,13 +11,12 @@ window.initBoard = function() {
     let isRemoteUpdate = false;
     let userRole = 'guest';
 
-    // --- 1. THEME & PERSONA SETUP (Replaces Default Personas) ---
-    // Palette based on provided theme colors
+    
     const THEME_PALETTES = [
-        { id: 'red', color: '#5C1F1F', bg: '#ffc9c9', iconColor: '#ffc9c9' },    // Red/Pink Theme
-        { id: 'blue', color: '#444444', bg: '#dce8ff', iconColor: '#ccdeff' },   // Blue Theme
-        { id: 'purple', color: '#2E2172', bg: '#e2d5ff', iconColor: '#e2d5ff' }, // Purple Theme
-        { id: 'green', color: '#214B2A', bg: '#cbffd1', iconColor: '#a6feb0' }   // Green Theme
+        { id: 'red', color: '#5C1F1F', bg: '#ffc9c9', iconColor: '#D15C5C' },    
+        { id: 'blue', color: '#444444', bg: '#dce8ff', iconColor: '#628CDF' },   
+        { id: 'purple', color: '#2E2172', bg: '#e2d5ff', iconColor: '#8E66DD' },
+        { id: 'green', color: '#214B2A', bg: '#cbffd1', iconColor: '#5AD668' }   
     ];
 
     // Load persisted data or default to random theme
@@ -1190,16 +1189,25 @@ window.initBoard = function() {
                 }
                 
                 // Emit Change Instantly to Sync with Others
+                // Send full persona object as part of update
+                socket.emit('profile:update', { 
+                    boardId: boardId,
+                    userId: myUserId,
+                    profile: {
+                        name: myPersona.name,
+                        mouseColor: myPersona.iconColor,
+                        themeColor: myPersona.bg,
+                        email: myPersona.email
+                    }
+                });
+                
+                // Also trigger a cursor move to ensure position + new color is broadcast
                 throttledCursorEmit(cursorPos.x, cursorPos.y);
                 
                 // Update Games Module if active so slots reflect new color/name
                 if (window.Games && window.Games.currentUser) {
                     window.Games.currentUser.name = myPersona.name;
                     window.Games.currentUser.mouseColor = myPersona.iconColor;
-                    // Trigger a game slot update if in a game? 
-                    // Usually game logic pulls from currentUser on actions, 
-                    // but for static slots, we might need to re-sit or similar.
-                    // For now, the next action will carry new color.
                 }
 
                 window.showCustomAlert("Profile Updated", "Your changes have been saved.", "success");
