@@ -1,3 +1,4 @@
+
 /************************************************************
  * INFINITE WHITEBOARD IMPLEMENTATION WITH SOCKET.IO
  ************************************************************/
@@ -11,18 +12,31 @@ window.initBoard = function() {
     let isRemoteUpdate = false;
     let userRole = 'guest';
 
+    // --- PERSONA PALETTE (Homepage Styling) ---
+    // Pairings: Dark Text (color/id) + Pastel Background (bg) + Pastel Icon (iconColor)
+    const PERSONA_PALETTE = [
+        { name: 'Alex', color: '#5C1F1F', bg: '#ffc9c9', iconColor: '#ffc9c9' }, // Red/Pink
+        { name: 'Leo', color: '#444444', bg: '#dce8ff', iconColor: '#ccdeff' }, // Grey/Blue
+        { name: 'Maya', color: '#2E2172', bg: '#e2d5ff', iconColor: '#e2d5ff' }, // Purple
+        { name: 'Sofia', color: '#214B2A', bg: '#cbffd1', iconColor: '#a6feb0' }, // Green
+        { name: 'Blue', color: '#1E3A8A', bg: '#BFDBFE', iconColor: '#93C5FD' }, // Blue
+        { name: 'Amber', color: '#78350F', bg: '#FDE68A', iconColor: '#FCD34D' }, // Amber
+        { name: 'Pink', color: '#831843', bg: '#FBCFE8', iconColor: '#F9A8D4' }, // Pink
+        { name: 'Teal', color: '#064E3B', bg: '#A7F3D0', iconColor: '#6EE7B7' }  // Teal
+    ];
+
     // --- USER PERSONA SETUP (Fallbacks) ---
     // These are used only if the backend doesn't return authenticated user data
-    const GUEST_PERSONAS = [
-        { name: 'Alex', color: '#5C1F1F', bg: '#ffc9c9', icon: 'fa-solid fa-location-arrow', iconColor: '#ffc9c9', rotation: -90 },
-        { name: 'Leo', color: '#444', bg: '#dce8ff', icon: 'fa-solid fa-location-arrow', iconColor: '#ccdeff', rotation: -90 },
-        { name: 'Maya', color: '#2E2172', bg: '#e2d5ff', icon: 'fa-solid fa-location-arrow', iconColor: '#e2d5ff', rotation: -90 },
-        { name: 'Sofia', color: '#214B2A', bg: '#cbffd1', icon: 'fa-solid fa-location-arrow', iconColor: '#a6feb0', rotation: -90 }
-    ];
+    // Randomly pick from the palette for guests
+    const GUEST_PERSONAS = PERSONA_PALETTE.slice(0, 4).map(p => ({
+        ...p,
+        icon: 'fa-solid fa-location-arrow',
+        rotation: -90
+    }));
 
     let myPersona = GUEST_PERSONAS[Math.floor(Math.random() * GUEST_PERSONAS.length)];
     // Ensure default color property exists for local cursor
-    if (!myPersona.color) myPersona.color = '#3b82f6'; // Default Blue
+    if (!myPersona.color) myPersona.color = '#1E3A8A'; 
 
     let myUserId = Date.now().toString(36) + Math.random().toString(36).substr(2);
     let currentUser = null; // Stores actual user object from backend
@@ -32,6 +46,13 @@ window.initBoard = function() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('room')) {
         boardId = params.get('room');
+    }
+
+    // --- HELPER: Get Palette Config by Color ID ---
+    function getPaletteConfig(colorId) {
+        // Find matching palette entry by the dark text color (which is stored as user.mouseColor)
+        const match = PERSONA_PALETTE.find(p => p.color.toLowerCase() === colorId?.toLowerCase());
+        return match || PERSONA_PALETTE[4]; // Default to Blue if not found
     }
 
     // --- FETCH USER DATA ---
@@ -48,15 +69,23 @@ window.initBoard = function() {
                     // Use Auth0 sub or ID from redis as userId
                     myUserId = user.id || user.sub;
                     
+                    // Determine styling based on stored mouseColor (which acts as the ID)
+                    const userColor = user.mouseColor || '#1E3A8A'; // Default to Blue Dark Text
+                    const palette = getPaletteConfig(userColor);
+
                     myPersona = {
                         name: user.name || user.email.split('@')[0], 
                         email: user.email,
-                        color: user.color || '#3b82f6', // Use saved color or default
-                        bg: '#e2d5ff',
+                        color: palette.color,      // Dark Text
+                        bg: palette.bg,            // Pastel BG
                         icon: 'fa-solid fa-location-arrow',
-                        iconColor: user.color || '#3b82f6', // Sync icon color
+                        iconColor: palette.iconColor, // Pastel Icon
                         rotation: -90
                     };
+                    
+                    // Normalize user object for local usage
+                    currentUser.color = palette.color; 
+                    
                     updateUserUI(currentUser);
                     console.log('✅ Logged in as:', currentUser.email);
                 } else {
@@ -81,7 +110,7 @@ window.initBoard = function() {
 
         // Initialize Game Engine with User and Socket Context
         if (window.Games && socket) {
-            window.Games.init(socket, currentUser || { id: myUserId, name: myPersona.name }, boardId);
+            window.Games.init(socket, currentUser || { id: myUserId, name: myPersona.name, mouseColor: myPersona.color }, boardId);
         }
     }
 
@@ -97,6 +126,9 @@ window.initBoard = function() {
             const displayName = user.name || user.email;
             const initials = displayName.substring(0, 2).toUpperCase();
             
+            // Derive palette for visuals
+            const palette = getPaletteConfig(user.color || myPersona.color);
+
             if (nameEl) nameEl.innerText = displayName;
             
             if (iconEl) {
@@ -111,17 +143,18 @@ window.initBoard = function() {
                     iconEl.innerHTML = initials; // Reset HTML
                     iconEl.className = "cursor-pointer hover:text-gray-300 transition-colors w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white";
                     
-                    // Apply Persona Color or User Color (Saved)
-                    iconEl.style.backgroundColor = user.color || myPersona.color || '#3b82f6';
+                    // Apply Persona Background (using IconColor/BG for the avatar circle looks best)
+                    iconEl.style.backgroundColor = palette.iconColor;
+                    iconEl.style.color = palette.color; // Dark text on pastel bg
                 }
             }
             if (popupName) popupName.innerText = user.name || "User";
             if (popupEmail) popupEmail.innerText = user.email;
             if (popupAvatar) {
                 popupAvatar.innerText = initials;
-                popupAvatar.style.color = 'white';
-                // Sync popup avatar background with user/persona color
-                popupAvatar.style.backgroundColor = user.color || myPersona.color || '#1a1b1d';
+                // Sync popup avatar
+                popupAvatar.style.backgroundColor = palette.iconColor;
+                popupAvatar.style.color = palette.color;
             }
         } else {
             if (nameEl) nameEl.innerText = "Guest";
@@ -1075,10 +1108,8 @@ window.initBoard = function() {
             else toggle(userPopup, false);
         });
         
-        // Profile Logic
-        // Vibrant Palette for Cursor & Profile BG
-        const profileColors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#64748B'];
-        let tempColor = myPersona.color;
+        // Profile Logic - UPDATED WITH PALETTE
+        let tempColorId = myPersona.color;
 
         const initProfileModal = () => {
              if(currentUser) {
@@ -1088,33 +1119,44 @@ window.initBoard = function() {
                  // Initial
                  const initials = (currentUser.name || currentUser.email).substring(0, 2).toUpperCase();
                  profileAvatar.innerText = initials;
+                 
+                 // Get config
+                 const palette = getPaletteConfig(myPersona.color);
+                 
                  // Set background of preview avatar to current selection
-                 profileAvatar.style.backgroundColor = myPersona.color || '#1a1b1d';
-                 profileAvatar.style.color = 'white';
+                 profileAvatar.style.backgroundColor = palette.iconColor;
+                 profileAvatar.style.color = palette.color;
 
                  if(currentUser.picture && !currentUser.picture.includes('s.gravatar.com')) {
                       profileAvatar.innerHTML = `<img src="${currentUser.picture}" class="w-full h-full rounded-full object-cover">`;
                  }
              }
              
-             tempColor = myPersona.color || '#3b82f6';
+             tempColorId = myPersona.color;
              
              // Dynamic Header Background Sync
              const headerBg = document.getElementById('profile-header-bg');
-             if(headerBg) headerBg.style.backgroundColor = myPersona.color || '#151313';
+             const currentPalette = getPaletteConfig(tempColorId);
+             if(headerBg) headerBg.style.backgroundColor = currentPalette.iconColor || '#151313';
 
-             // Render Colors
+             // Render Colors from PERSONA_PALETTE
              profileColorPicker.innerHTML = '';
-             profileColors.forEach(c => {
+             PERSONA_PALETTE.forEach(p => {
                  const dot = document.createElement('div');
-                 dot.className = `w-6 h-6 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tempColor === c ? 'border-white scale-110' : 'border-transparent'}`;
-                 dot.style.backgroundColor = c;
+                 // Use iconColor (pastel) for the dot as it represents the main visual flair
+                 dot.className = `w-6 h-6 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tempColorId === p.color ? 'border-white scale-110' : 'border-transparent'}`;
+                 dot.style.backgroundColor = p.iconColor; 
+                 dot.title = p.name;
+                 
                  dot.onclick = () => {
-                      tempColor = c;
+                      tempColorId = p.color; // Store the ID (dark text color)
+                      
                       // Update Preview Avatar immediately for feedback
-                      profileAvatar.style.backgroundColor = c;
+                      profileAvatar.style.backgroundColor = p.iconColor;
+                      profileAvatar.style.color = p.color;
+                      
                       // Update Header BG immediately for feedback
-                      if(headerBg) headerBg.style.backgroundColor = c;
+                      if(headerBg) headerBg.style.backgroundColor = p.iconColor;
                       
                       // Refresh picker UI
                       Array.from(profileColorPicker.children).forEach(child => child.classList.remove('border-white', 'scale-110'));
@@ -1139,7 +1181,8 @@ window.initBoard = function() {
         if (saveProfileBtn) {
             saveProfileBtn.onclick = () => {
                 const newName = profileNameInput.value.trim();
-                
+                const palette = getPaletteConfig(tempColorId);
+
                 // Save Name
                 if(newName) {
                     if(currentUser) currentUser.name = newName;
@@ -1147,10 +1190,13 @@ window.initBoard = function() {
                 }
 
                 // Save Color
-                if(tempColor) {
-                    if(currentUser) currentUser.color = tempColor;
-                    myPersona.color = tempColor;
-                    myPersona.iconColor = tempColor;
+                if(tempColorId) {
+                    if(currentUser) currentUser.color = tempColorId; // This is the ID/MouseColor
+                    
+                    // Update MyPersona with full palette
+                    myPersona.color = palette.color;
+                    myPersona.bg = palette.bg;
+                    myPersona.iconColor = palette.iconColor;
                 }
 
                 // Update UI Components
@@ -1158,9 +1204,24 @@ window.initBoard = function() {
                 
                 // Force Immediate Cursor Color Update
                 const customCursor = document.getElementById('customCursor');
-                if(customCursor) customCursor.style.color = tempColor;
+                if(customCursor) customCursor.style.color = palette.color;
 
                 window.showCustomAlert("Profile Updated", "Your changes have been saved.", "success");
+                
+                // Emit update to other users
+                if (socket) {
+                    socket.emit('profile:update', {
+                        boardId,
+                        userId: myUserId,
+                        profile: {
+                            name: myPersona.name,
+                            email: currentUser ? currentUser.email : null,
+                            mouseColor: myPersona.color, // Sync the ID
+                            themeColor: '#1a1b1d' 
+                        }
+                    });
+                }
+
                 toggle(profileModal, false);
             };
         }
@@ -3244,16 +3305,19 @@ window.initBoard = function() {
         if (activeTool === 'mouse') {
            customCursor.className = 'fas fa-location-arrow custom-cursor opacity-100';
            customCursor.style.transform = 'rotate(-90deg)';
-           // Apply persona color dynamically
-           customCursor.style.color = myPersona.color || '#3b82f6';
+           
+           // Apply persona color dynamically based on palette lookup
+           const palette = getPaletteConfig(myPersona.color);
+           customCursor.style.color = palette.color; // Dark Text Color for Cursor Body
+           
         } else if (activeTool === 'eraser') {
             customCursor.className = 'fas fa-location-arrow custom-cursor opacity-100';
             customCursor.style.transform = 'rotate(-90deg)';
-            customCursor.style.color = myPersona.color || '#3b82f6';
+            customCursor.style.color = getPaletteConfig(myPersona.color).color;
         } else {
             customCursor.className = 'fas fa-location-arrow custom-cursor opacity-100';
             customCursor.style.transform = 'rotate(-90deg)';
-            customCursor.style.color = myPersona.color || '#3b82f6';
+            customCursor.style.color = getPaletteConfig(myPersona.color).color;
         }
 
         if (isMovingElement) {
