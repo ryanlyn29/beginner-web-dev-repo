@@ -84,6 +84,13 @@ const Games = {
                     }
                 }
             });
+            
+            // Listen for general game actions to update UI real-time
+            this.socket.on('game:action', (data) => {
+                if (this.activeGame) {
+                    this.handleEvent(data);
+                }
+            });
 
             // Listen for user ghost status to update UI
             this.socket.on('user:ghost', (data) => {
@@ -766,7 +773,7 @@ class RockPaperScissors extends MultiplayerGame {
             </div>
         `;
         
-        // Auto reset logic
+        // Auto reset
         if (this.players[1] && this.players[1].id === this.currentUser.id) {
             setTimeout(() => this.emit('RPS_RESET', {}), 3000);
         }
